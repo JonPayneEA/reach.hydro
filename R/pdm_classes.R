@@ -1,102 +1,138 @@
 # =============================================================================
-# Tool:        reach.hydro S7 class definitions
-# Description: Typed S7 classes for PDM parameter sets and model results.
-#              PdmParams validates all parameters at construction time so
-#              errors surface before the model loop runs.
+# Tool:        reach.hydro — PDM S3 class definitions
+# Description: PdmParams (validated parameter set) and ReachHydroResult
+#              (typed model output). All parameters from Moore (2007) Table 1.
 # Flode Module: reach.hydro
 # Author:      Forecasting and Warning Team
 # Created:     2026-02-01
-# Modified:    2026-02-23 - JP: initial skeleton
+# Modified:    2026-03-16 - JP: added fc, td, qc; k1/k2 surface routing;
+#                               three recharge formulations; kb/m naming.
 # Tier:        1
-# Inputs:      Named parameter values (see PdmParams below)
-# Outputs:     PdmParams S7 object; ReachHydroResult S7 object
-# Dependencies: S7 (base R >= 4.2 via the S7 package once stabilised;
-#               currently using R7/S7 conventions)
 # =============================================================================
-
-# NOTE: S7 is the team's preferred OOP system for new Flode/REACH classes.
-# When the S7 package is formally on CRAN and stable, replace these stubs
-# with full S7::new_class() definitions. Until then, we use a constructor
-# + validator pattern that is API-compatible with what S7 will expose.
-
-# -----------------------------------------------------------------------------
-# PdmParams — validated PDM parameter set
-# -----------------------------------------------------------------------------
 
 #' Construct and validate a PDM parameter set
 #'
-#' Creates a named list with class `"PdmParams"` containing all PDM parameters,
-#' validated against distribution-specific requirements and physical bounds.
+#' Creates a `PdmParams` object containing all parameters from Moore (2007)
+#' Table 1. Parameters are validated at construction time.
 #'
-#' @param dist      Capacity distribution. One of `"pareto"`, `"uniform"`,
-#'                  `"exponential"`, `"glogistic"`, `"normal"`, `"lognormal"`.
-#' @param cmin      Minimum storage capacity \[mm\]. Used by pareto, uniform,
-#'                  glogistic. Default 0.
-#' @param cmax      Maximum (or mean) storage capacity \[mm\]. Used by pareto,
-#'                  uniform, exponential, glogistic. Default 400.
-#' @param b         Shape parameter. Used by pareto, glogistic. Default 0.4.
-#' @param mu_c      Mean capacity \[mm\]. Used by normal distribution. Default 200.
-#' @param sigma_c   Std dev of capacity \[mm\]. Used by normal. Default 80.
-#' @param mu_lnc    Mean of log(capacity). Used by lognormal. Default 5.0.
-#' @param sigma_lnc Std dev of log(capacity). Used by lognormal. Default 0.5.
-#' @param be        AET exponent. Default 5.
-#' @param St        Tension threshold \[mm\]. Default 10.
-#' @param kg        Groundwater time constant \[timesteps\]. Default 200.
-#' @param bg        Groundwater exponent (1 = linear). Default 1.
-#' @param Sg_max    Max groundwater store \[mm\]; 0 = unlimited. Default 0.
-#' @param ks        Surface store time constant \[timesteps\]. Default 10.
-#' @param use_split Use proportional split instead of drainage function.
-#'                  Default `FALSE`.
-#' @param alpha     Fraction of runoff to surface store (split only). Default 0.4.
+#' @section Rainfall transform:
+#' \describe{
+#'   \item{fc}{Rainfall factor \[-\]. Scales catchment-average rainfall before
+#'     it enters the soil store. Default 1 (no scaling).}
+#'   \item{td}{Time delay \[timesteps\]. Integer lag applied to rainfall input.
+#'     Default 0.}
+#' }
+#'
+#' @section Probability-distributed soil store:
+#' \describe{
+#'   \item{dist}{Capacity distribution: `"pareto"` (default), `"rectangular"`,
+#'     `"exponential"`, `"triangular"`, `"normal"`, `"lognormal"`.}
+#'   \item{cmin}{Minimum store capacity \[mm\]. Default 0.}
+#'   \item{cmax}{Maximum store capacity \[mm\]. Default 400.}
+#'   \item{b}{Exponent of Pareto distribution (also used by triangular as
+#'     shape context). Default 0.4.}
+#'   \item{mu_c}{Mean capacity \[mm\] — normal distribution only. Default 200.}
+#'   \item{sigma_c}{Std dev of capacity \[mm\] — normal only. Default 80.}
+#'   \item{mu_lnc}{Mean of log(capacity) — lognormal only. Default 5.0.}
+#'   \item{sigma_lnc}{Std dev of log(capacity) — lognormal only. Default 0.5.}
+#' }
+#'
+#' @section Evaporation:
+#' \describe{
+#'   \item{be}{Exponent in actual evaporation function. Default 5.}
+#' }
+#'
+#' @section Recharge formulation (select one via `recharge_type`):
+#' \describe{
+#'   \item{recharge_type}{`"standard"` (default), `"demand"`, or `"split"`.}
+#'   \item{kg}{Recharge time constant \[timesteps\] — standard only. Default 200.}
+#'   \item{bg}{Exponent of recharge function \[-\] — standard only. Default 1.}
+#'   \item{St}{Soil tension storage capacity \[mm\] — standard only. Default 10.}
+#'   \item{alpha}{Groundwater deficit ratio threshold \[-\] — demand; or runoff
+#'     split fraction to surface store — split. Default 0.4.}
+#'   \item{beta}{Exponent in groundwater demand factor function \[-\] — demand
+#'     only. Default 1.}
+#'   \item{q_sat}{Maximum recharge rate \[mm/timestep\] — demand only.
+#'     Default 2.}
+#' }
+#'
+#' @section Groundwater storage routing:
+#' \describe{
+#'   \item{kb}{Baseflow time constant \[hour * mm^{1-m}\]. Default 200.}
+#'   \item{m}{Exponent of baseflow non-linear storage \[-\]. m=1 gives linear
+#'     reservoir. Default 1.}
+#'   \item{Sg_max}{Maximum groundwater store \[mm\]. 0 = unlimited. Default 0.}
+#' }
+#'
+#' @section Surface routing (cascade of two linear reservoirs):
+#' \describe{
+#'   \item{k1}{Time constant of first surface reservoir \[timesteps\].
+#'     Default 5.}
+#'   \item{k2}{Time constant of second surface reservoir \[timesteps\].
+#'     Default 5.}
+#' }
+#'
+#' @section Constant flow addition:
+#' \describe{
+#'   \item{qc}{Constant flow \[m³/s\] added to total flow at every timestep.
+#'     Positive = return flow; negative = abstraction. Default 0.}
+#' }
 #'
 #' @return An object of class `"PdmParams"`.
 #'
 #' @examples
-#' p <- pdm_params(dist = "pareto", cmax = 350, b = 0.4)
-#' pdm_validate_params(p)
+#' # Standard recharge, Pareto distribution
+#' p <- pdm_params(dist = "pareto", cmax = 350, b = 0.4,
+#'                 fc = 1.0, td = 0L, kb = 150, m = 1, k1 = 5, k2 = 10)
+#'
+#' # Demand-based recharge
+#' p2 <- pdm_params(recharge_type = "demand",
+#'                  alpha = 0.3, beta = 2, q_sat = 1.5, Sg_max = 300)
 #'
 #' @export
 pdm_params <- function(
-    dist      = "pareto",
-    cmin      = 0,
-    cmax      = 400,
-    b         = 0.4,
-    mu_c      = 200,
-    sigma_c   = 80,
-    mu_lnc    = 5.0,
-    sigma_lnc = 0.5,
-    be        = 5,
-    St        = 10,
-    kg        = 200,
-    bg        = 1,
-    Sg_max    = 0,
-    ks        = 10,
-    use_split = FALSE,
-    alpha     = 0.4
+    dist         = "pareto",
+    fc           = 1.0,
+    td           = 0L,
+    cmin         = 0,
+    cmax         = 400,
+    b            = 0.4,
+    mu_c         = 200,
+    sigma_c      = 80,
+    mu_lnc       = 5.0,
+    sigma_lnc    = 0.5,
+    be           = 5,
+    recharge_type = "standard",
+    kg           = 200,
+    bg           = 1,
+    St           = 10,
+    alpha        = 0.4,
+    beta         = 1,
+    q_sat        = 2,
+    kb           = 200,
+    m            = 1,
+    Sg_max       = 0,
+    k1           = 5,
+    k2           = 5,
+    qc           = 0
 ) {
-  dist <- match.arg(
-    dist,
-    c("pareto", "uniform", "exponential", "glogistic", "normal", "lognormal")
-  )
+  dist          <- match.arg(dist, c("pareto", "rectangular", "exponential",
+                                     "triangular", "lognormal"))
+  recharge_type <- match.arg(recharge_type, c("standard", "demand", "split"))
 
   p <- structure(
     list(
-      dist      = dist,
-      cmin      = cmin,
-      cmax      = cmax,
-      b         = b,
-      mu_c      = mu_c,
-      sigma_c   = sigma_c,
-      mu_lnc    = mu_lnc,
-      sigma_lnc = sigma_lnc,
-      be        = be,
-      St        = St,
-      kg        = kg,
-      bg        = bg,
-      Sg_max    = Sg_max,
-      ks        = ks,
-      use_split = use_split,
-      alpha     = alpha
+      dist = dist, fc = fc, td = as.integer(round(td)),
+      cmin = cmin, cmax = cmax, b = b,
+      mu_c = mu_c, sigma_c = sigma_c,
+      mu_lnc = mu_lnc, sigma_lnc = sigma_lnc,
+      be = be,
+      recharge_type = recharge_type,
+      kg = kg, bg = bg, St = St,
+      alpha = alpha, beta = beta, q_sat = q_sat,
+      kb = kb, m = m, Sg_max = Sg_max,
+      k1 = k1, k2 = k2,
+      qc = qc
     ),
     class = "PdmParams"
   )
@@ -107,39 +143,47 @@ pdm_params <- function(
 
 #' Validate a PdmParams object
 #'
-#' Checks physical plausibility of all parameters. Called automatically by
-#' [pdm_params()]. Can be called explicitly after manual modification.
-#'
-#' @param p A `PdmParams` object (or plain named list).
+#' @param p A `PdmParams` object or plain named list.
 #' @return `p` invisibly if valid; stops with an informative error otherwise.
 #' @export
 pdm_validate_params <- function(p) {
   errs <- character(0)
+  chk  <- function(cond, msg) if (!cond) errs <<- c(errs, msg)
 
-  chk <- function(cond, msg) if (!cond) errs <<- c(errs, msg)
+  chk(p$cmax > 0,           "cmax must be > 0")
+  chk(p$cmin >= 0,          "cmin must be >= 0")
+  chk(p$cmin < p$cmax,      "cmin must be < cmax")
+  chk(p$b > 0,              "b must be > 0")
+  chk(p$mu_c > 0,           "mu_c must be > 0")
+  chk(p$sigma_c > 0,        "sigma_c must be > 0")
+  chk(p$sigma_lnc > 0,      "sigma_lnc must be > 0")
+  chk(p$be > 0,             "be must be > 0")
+  chk(p$fc > 0,             "fc (rainfall factor) must be > 0")
+  chk(p$td >= 0L,           "td (time delay) must be >= 0")
+  chk(p$kb > 0,             "kb (baseflow time constant) must be > 0")
+  chk(p$m > 0,              "m (baseflow exponent) must be > 0")
+  chk(p$Sg_max >= 0,        "Sg_max must be >= 0")
+  chk(p$k1 > 0,             "k1 (surface reservoir 1 time constant) must be > 0")
+  chk(p$k2 > 0,             "k2 (surface reservoir 2 time constant) must be > 0")
 
-  chk(p$cmax > 0,          "cmax must be > 0")
-  chk(p$cmin >= 0,         "cmin must be >= 0")
-  chk(p$cmin < p$cmax,     "cmin must be < cmax")
-  chk(p$b > 0,             "b (shape) must be > 0")
-  chk(p$mu_c > 0,          "mu_c must be > 0")
-  chk(p$sigma_c > 0,       "sigma_c must be > 0")
-  chk(p$sigma_lnc > 0,     "sigma_lnc must be > 0")
-  chk(p$be > 0,            "be (AET exponent) must be > 0")
-  chk(p$St >= 0,           "St (tension threshold) must be >= 0")
-  chk(p$kg > 0,            "kg (groundwater time constant) must be > 0")
-  chk(p$bg > 0,            "bg (groundwater exponent) must be > 0")
-  chk(p$Sg_max >= 0,       "Sg_max must be >= 0")
-  chk(p$ks > 0,            "ks (surface time constant) must be > 0")
-  chk(p$alpha >= 0 && p$alpha <= 1, "alpha must be in [0, 1]")
-
-  if (length(errs) > 0) {
-    stop(
-      "Invalid PDM parameters:\n",
-      paste0("  - ", errs, collapse = "\n"),
-      call. = FALSE
-    )
+  if (p$recharge_type == "standard") {
+    chk(p$kg > 0,           "kg must be > 0 for standard recharge")
+    chk(p$bg > 0,           "bg must be > 0 for standard recharge")
+    chk(p$St >= 0,          "St must be >= 0")
   }
+  if (p$recharge_type == "demand") {
+    chk(p$alpha > 0 && p$alpha <= 1, "alpha must be in (0,1] for demand recharge")
+    chk(p$beta > 0,         "beta must be > 0 for demand recharge")
+    chk(p$q_sat > 0,        "q_sat must be > 0 for demand recharge")
+    chk(p$Sg_max > 0,       "Sg_max must be > 0 for demand recharge")
+  }
+  if (p$recharge_type == "split") {
+    chk(p$alpha >= 0 && p$alpha <= 1, "alpha must be in [0,1] for split recharge")
+  }
+
+  if (length(errs) > 0)
+    stop("Invalid PDM parameters:\n",
+         paste0("  - ", errs, collapse = "\n"), call. = FALSE)
 
   invisible(p)
 }
@@ -147,19 +191,29 @@ pdm_validate_params <- function(p) {
 #' @export
 print.PdmParams <- function(x, ...) {
   cat("<PdmParams>\n")
-  cat(sprintf("  Distribution : %s\n", x$dist))
-  cat(sprintf("  cmin / cmax  : %.1f / %.1f mm\n", x$cmin, x$cmax))
-  if (x$dist %in% c("pareto", "glogistic"))
-    cat(sprintf("  b (shape)    : %.3f\n", x$b))
+  cat(sprintf("  Distribution    : %s\n", x$dist))
+  cat(sprintf("  fc / td         : %.3f / %d timesteps\n", x$fc, x$td))
+  cat(sprintf("  cmin / cmax     : %.1f / %.1f mm\n", x$cmin, x$cmax))
+  if (x$dist %in% c("pareto"))
+    cat(sprintf("  b (shape)       : %.3f\n", x$b))
   if (x$dist == "normal")
-    cat(sprintf("  mu_c / sigma_c : %.1f / %.1f mm\n", x$mu_c, x$sigma_c))
+    cat(sprintf("  mu_c / sigma_c  : %.1f / %.1f mm\n", x$mu_c, x$sigma_c))
   if (x$dist == "lognormal")
-    cat(sprintf("  mu_lnc / sigma_lnc : %.2f / %.2f\n", x$mu_lnc, x$sigma_lnc))
-  cat(sprintf("  be / St      : %.1f / %.1f\n", x$be, x$St))
-  cat(sprintf("  kg / bg      : %.1f / %.2f\n", x$kg, x$bg))
-  cat(sprintf("  ks           : %.1f\n", x$ks))
-  if (x$use_split)
-    cat(sprintf("  split alpha  : %.2f\n", x$alpha))
+    cat(sprintf("  mu_lnc/sigma_lnc: %.2f / %.2f\n", x$mu_lnc, x$sigma_lnc))
+  cat(sprintf("  be              : %.1f\n", x$be))
+  cat(sprintf("  Recharge type   : %s\n", x$recharge_type))
+  if (x$recharge_type == "standard")
+    cat(sprintf("  kg / bg / St    : %.1f / %.2f / %.1f mm\n",
+                x$kg, x$bg, x$St))
+  if (x$recharge_type == "demand")
+    cat(sprintf("  alpha/beta/q_sat: %.2f / %.2f / %.2f\n",
+                x$alpha, x$beta, x$q_sat))
+  if (x$recharge_type == "split")
+    cat(sprintf("  split alpha     : %.2f\n", x$alpha))
+  cat(sprintf("  kb / m          : %.1f / %.2f\n", x$kb, x$m))
+  cat(sprintf("  k1 / k2         : %.1f / %.1f timesteps\n", x$k1, x$k2))
+  if (x$qc != 0)
+    cat(sprintf("  qc              : %.4f m3/s\n", x$qc))
   invisible(x)
 }
 
@@ -167,18 +221,6 @@ print.PdmParams <- function(x, ...) {
 # ReachHydroResult — typed wrapper around pdm() output
 # -----------------------------------------------------------------------------
 
-#' Construct a ReachHydroResult object
-#'
-#' Internal constructor called by [pdm()]. Wraps the output `data.table` with
-#' metadata needed for downstream methods (print, summary, plot dispatch).
-#'
-#' @param dt     `data.table` of per-timestep model output.
-#' @param params A `PdmParams` object.
-#' @param Smax   Basin storage capacity \[mm\].
-#' @param dist   Capacity distribution name.
-#' @param call   The matched call (for provenance).
-#'
-#' @return Object of class `c("ReachHydroResult", "data.table", "data.frame")`.
 #' @keywords internal
 new_reach_hydro_result <- function(dt, params, Smax, dist, call = NULL) {
   structure(
@@ -209,10 +251,11 @@ print.ReachHydroResult <- function(x, ...) {
 summary.ReachHydroResult <- function(object, warmup = 0, ...) {
   idx <- seq(warmup + 1L, nrow(object))
   cat("<ReachHydroResult summary>\n")
-  cat(sprintf("  Timesteps (excl. warmup) : %d\n", length(idx)))
-  cat(sprintf("  Distribution             : %s\n", attr(object, "dist")))
+  cat(sprintf("  Timesteps (excl. warmup) : %d\n",  length(idx)))
+  cat(sprintf("  Distribution             : %s\n",  attr(object, "dist")))
   cat(sprintf("  Smax                     : %.1f mm\n", attr(object, "Smax")))
-  cat(sprintf("  Mean rainfall            : %.3f mm/ts\n", mean(object$rain[idx])))
+  cat(sprintf("  Mean rainfall (raw)      : %.3f mm/ts\n", mean(object$rain[idx])))
+  cat(sprintf("  Mean rainfall (fc/td)    : %.3f mm/ts\n", mean(object$rain_eff[idx])))
   cat(sprintf("  Mean AET                 : %.3f mm/ts\n", mean(object$AET[idx])))
   cat(sprintf("  Mean Q (total)           : %.3f mm/ts\n", mean(object$Q[idx])))
   cat(sprintf("  Mean Qf (fast)           : %.3f mm/ts\n", mean(object$Qf[idx])))

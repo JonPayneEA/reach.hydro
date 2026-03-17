@@ -41,5 +41,5 @@ feh_ddf(duration_hr = c(1, 2, 4, 6, 12, 24),
 
 }
 \seealso{
-\code{\link[=feh_design_storm]{feh_design_storm()}}, \code{\link[=refh2_run]{refh2_run()}}
+\code{\link[=feh_design_storm]{feh_design_storm()}}, \code{\link[=refh_run]{refh_run()}}
 }

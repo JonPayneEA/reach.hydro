@@ -1,5 +1,7 @@
 # reach.hydro
 
+<img src="man/figures/logo.svg" align="right" width=160/>
+
 **Core hydrological calculations for the REACH framework**  
 Forecasting and Warning Team | Tier 1/2 | Version 0.2.0
 
@@ -10,7 +12,7 @@ Forecasting and Warning Team | Tier 1/2 | Version 0.2.0
 `reach.hydro` provides a complete set of hydrological calculation tools for
 the Forecasting and Warning team, covering rainfall-runoff modelling, flood
 frequency estimation, and design flood methods. It is the hydrology module of
-the REACH framework (formerly `flode.hydro` within the Flode meta-package).
+the REACH framework within the flode meta-package.
 
 ## Methods covered
 

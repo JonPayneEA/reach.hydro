@@ -7,10 +7,11 @@
 capacity_cdf(c, dist, params)
 }
 \arguments{
-\item{c}{Storage capacity values [mm]}
+\item{c}{Storage capacity values [mm].}
 
-\item{dist}{Distribution name. One of \code{"pareto"}, \code{"uniform"},
-\code{"exponential"}, \code{"glogistic"}, \code{"normal"}, \code{"lognormal"}.}
+\item{dist}{One of \code{"pareto"}, \code{"rectangular"}, \code{"exponential"},
+\code{"triangular"}, \code{"lognormal"}. These correspond directly to
+Appendices A-E of Moore (2007).}
 
 \item{params}{A \code{PdmParams} object or compatible named list.}
 }
@@ -21,5 +22,5 @@ Numeric vector of probabilities in [0, 1].
 CDF F(c) for the chosen capacity distribution
 }
 \references{
-Moore (2007), Appendices A-F.
+Moore (2007), Appendices A-E.
 }

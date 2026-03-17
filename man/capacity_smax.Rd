@@ -7,8 +7,9 @@
 capacity_smax(dist, params)
 }
 \arguments{
-\item{dist}{Distribution name. One of \code{"pareto"}, \code{"uniform"},
-\code{"exponential"}, \code{"glogistic"}, \code{"normal"}, \code{"lognormal"}.}
+\item{dist}{One of \code{"pareto"}, \code{"rectangular"}, \code{"exponential"},
+\code{"triangular"}, \code{"lognormal"}. These correspond directly to
+Appendices A-E of Moore (2007).}
 
 \item{params}{A \code{PdmParams} object or compatible named list.}
 }
@@ -19,5 +20,5 @@ Smax [mm].
 Maximum basin storage Smax for the chosen distribution
 }
 \references{
-Moore (2007), Appendices A-F.
+Moore (2007), Appendices A-E.
 }

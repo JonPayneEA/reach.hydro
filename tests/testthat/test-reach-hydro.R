@@ -20,15 +20,14 @@ set.seed(42)
 .pet  <- pmax(0, 3 * (1 - .seas) + stats::rnorm(.n, 0, 0.3))
 
 .p_pareto <- pdm_params(dist = "pareto", cmax = 350, b = 0.4, St = 20,
-                        kg = 150, ks = 8)
+                        kb = 150, m = 1, k1 = 5, k2 = 8)
 
 # =============================================================================
 # PdmParams construction and validation
 # =============================================================================
 
 test_that("pdm_params creates valid PdmParams for all distributions", {
-  dists <- c("pareto", "uniform", "exponential",
-             "glogistic", "normal", "lognormal")
+  dists <- c("pareto", "rectangular", "exponential", "triangular", "lognormal")
   for (d in dists) {
     p <- pdm_params(dist = d)
     expect_s3_class(p, "PdmParams")
@@ -56,7 +55,7 @@ test_that("print.PdmParams runs without error", {
 test_that("capacity_smax returns positive value for all distributions", {
   params <- list(cmin=0, cmax=300, b=0.5, mu_c=150, sigma_c=60,
                  mu_lnc=4.9, sigma_lnc=0.4)
-  dists  <- c("pareto","uniform","exponential","glogistic","normal","lognormal")
+  dists  <- c("pareto","rectangular","exponential","triangular","lognormal")
   for (d in dists) {
     s <- capacity_smax(d, params)
     expect_gt(s, 0, label = paste("Smax for", d))
@@ -71,7 +70,7 @@ test_that("Pareto Smax matches Moore (2007) Appendix A closed form", {
 
 test_that("Uniform Smax matches closed form", {
   p <- list(cmin=20, cmax=200)
-  expect_equal(capacity_smax("uniform", p), (20 + 200) / 2, tolerance = 1e-10)
+  expect_equal(capacity_smax("rectangular", p), (20 + 200) / 2, tolerance = 1e-10)
 })
 
 test_that("Exponential Smax equals cmax", {
@@ -83,7 +82,7 @@ test_that("capacity_cdf returns values in [0, 1]", {
   c_vals <- seq(0, 400, by = 50)
   params <- list(cmin=0, cmax=400, b=0.5, mu_c=200, sigma_c=80,
                  mu_lnc=5.0, sigma_lnc=0.5)
-  for (d in c("pareto","uniform","exponential","glogistic","normal","lognormal")) {
+  for (d in c("pareto","rectangular","exponential","triangular","lognormal")) {
     f <- capacity_cdf(c_vals, d, params)
     expect_true(all(f >= 0 & f <= 1), label = paste("CDF bounds:", d))
     expect_true(all(diff(f) >= 0),    label = paste("CDF monotone:", d))
@@ -93,7 +92,7 @@ test_that("capacity_cdf returns values in [0, 1]", {
 test_that("capacity_runoff is bounded to [0, P] for all distributions", {
   params <- list(cmin=0, cmax=350, b=0.4, mu_c=175, sigma_c=70,
                  mu_lnc=5.0, sigma_lnc=0.5)
-  for (d in c("pareto","uniform","exponential","glogistic","normal","lognormal")) {
+  for (d in c("pareto","rectangular","exponential","triangular","lognormal")) {
     for (S in c(0, 50, 150, 300)) {
       Qr <- capacity_runoff(P = 20, S = S, dist = d, params = params)
       expect_gte(Qr, 0,  label = paste("Runoff >= 0:", d, "S=", S))
@@ -145,7 +144,7 @@ test_that("pdm() stores are non-negative at every timestep", {
 
 test_that("pdm() accepts plain list params (backward-compatible)", {
   res <- pdm(.rain, .pet,
-             params = list(cmax = 300, b = 0.4, St = 10, kg = 100, ks = 5),
+             params = list(cmax = 300, b = 0.4, St = 10, kb = 100, m = 1, k1 = 5, k2 = 5),
              dist = "pareto")
   expect_s3_class(res, "ReachHydroResult")
 })
@@ -159,10 +158,9 @@ test_that("pdm() errors on empty input", {
 })
 
 test_that("pdm() runs successfully for all six distributions", {
-  dists <- c("pareto","uniform","exponential","glogistic","normal","lognormal")
+  dists <- c("pareto","rectangular","exponential","triangular","lognormal")
   for (d in dists) {
-    p <- pdm_params(dist = d, cmax = 300, mu_c = 150, sigma_c = 60,
-                    mu_lnc = 4.9, sigma_lnc = 0.4)
+    p <- pdm_params(dist = d, cmax = 300, mu_lnc = 4.9, sigma_lnc = 0.4, k1 = 5, k2 = 5)
     expect_no_error(pdm(.rain[1:100], .pet[1:100], params = p),
                     label = paste("pdm() with dist =", d))
   }
@@ -171,7 +169,7 @@ test_that("pdm() runs successfully for all six distributions", {
 test_that("print and summary methods run without error", {
   res <- pdm(.rain, .pet, params = .p_pareto)
   expect_output(print(res),   "ReachHydroResult")
-  expect_output(summary(res), "distribution")
+  expect_output(summary(res), "distribution|Smax")
 })
 
 # =============================================================================

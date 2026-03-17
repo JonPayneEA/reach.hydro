@@ -6,6 +6,8 @@
 \usage{
 pdm_params(
   dist = "pareto",
+  fc = 1,
+  td = 0L,
   cmin = 0,
   cmax = 400,
   b = 0.4,
@@ -14,61 +16,112 @@ pdm_params(
   mu_lnc = 5,
   sigma_lnc = 0.5,
   be = 5,
-  St = 10,
+  recharge_type = "standard",
   kg = 200,
   bg = 1,
+  St = 10,
+  alpha = 0.4,
+  beta = 1,
+  q_sat = 2,
+  kb = 200,
+  m = 1,
   Sg_max = 0,
-  ks = 10,
-  use_split = FALSE,
-  alpha = 0.4
+  k1 = 5,
+  k2 = 5,
+  qc = 0
 )
-}
-\arguments{
-\item{dist}{Capacity distribution. One of \code{"pareto"}, \code{"uniform"},
-\code{"exponential"}, \code{"glogistic"}, \code{"normal"}, \code{"lognormal"}.}
-
-\item{cmin}{Minimum storage capacity [mm]. Used by pareto, uniform,
-glogistic. Default 0.}
-
-\item{cmax}{Maximum (or mean) storage capacity [mm]. Used by pareto,
-uniform, exponential, glogistic. Default 400.}
-
-\item{b}{Shape parameter. Used by pareto, glogistic. Default 0.4.}
-
-\item{mu_c}{Mean capacity [mm]. Used by normal distribution. Default 200.}
-
-\item{sigma_c}{Std dev of capacity [mm]. Used by normal. Default 80.}
-
-\item{mu_lnc}{Mean of log(capacity). Used by lognormal. Default 5.0.}
-
-\item{sigma_lnc}{Std dev of log(capacity). Used by lognormal. Default 0.5.}
-
-\item{be}{AET exponent. Default 5.}
-
-\item{St}{Tension threshold [mm]. Default 10.}
-
-\item{kg}{Groundwater time constant [timesteps]. Default 200.}
-
-\item{bg}{Groundwater exponent (1 = linear). Default 1.}
-
-\item{Sg_max}{Max groundwater store [mm]; 0 = unlimited. Default 0.}
-
-\item{ks}{Surface store time constant [timesteps]. Default 10.}
-
-\item{use_split}{Use proportional split instead of drainage function.
-Default \code{FALSE}.}
-
-\item{alpha}{Fraction of runoff to surface store (split only). Default 0.4.}
 }
 \value{
 An object of class \code{"PdmParams"}.
 }
 \description{
-Creates a named list with class \code{"PdmParams"} containing all PDM parameters,
-validated against distribution-specific requirements and physical bounds.
+Creates a \code{PdmParams} object containing all parameters from Moore (2007)
+Table 1. Parameters are validated at construction time.
 }
+\section{Rainfall transform}{
+
+\describe{
+\item{fc}{Rainfall factor [-]. Scales catchment-average rainfall before
+it enters the soil store. Default 1 (no scaling).}
+\item{td}{Time delay [timesteps]. Integer lag applied to rainfall input.
+Default 0.}
+}
+}
+
+\section{Probability-distributed soil store}{
+
+\describe{
+\item{dist}{Capacity distribution: \code{"pareto"} (default), \code{"rectangular"},
+\code{"exponential"}, \code{"triangular"}, \code{"normal"}, \code{"lognormal"}.}
+\item{cmin}{Minimum store capacity [mm]. Default 0.}
+\item{cmax}{Maximum store capacity [mm]. Default 400.}
+\item{b}{Exponent of Pareto distribution (also used by triangular as
+shape context). Default 0.4.}
+\item{mu_c}{Mean capacity [mm] — normal distribution only. Default 200.}
+\item{sigma_c}{Std dev of capacity [mm] — normal only. Default 80.}
+\item{mu_lnc}{Mean of log(capacity) — lognormal only. Default 5.0.}
+\item{sigma_lnc}{Std dev of log(capacity) — lognormal only. Default 0.5.}
+}
+}
+
+\section{Evaporation}{
+
+\describe{
+\item{be}{Exponent in actual evaporation function. Default 5.}
+}
+}
+
+\section{Recharge formulation (select one via \code{recharge_type})}{
+
+\describe{
+\item{recharge_type}{\code{"standard"} (default), \code{"demand"}, or \code{"split"}.}
+\item{kg}{Recharge time constant [timesteps] — standard only. Default 200.}
+\item{bg}{Exponent of recharge function [-] — standard only. Default 1.}
+\item{St}{Soil tension storage capacity [mm] — standard only. Default 10.}
+\item{alpha}{Groundwater deficit ratio threshold [-] — demand; or runoff
+split fraction to surface store — split. Default 0.4.}
+\item{beta}{Exponent in groundwater demand factor function [-] — demand
+only. Default 1.}
+\item{q_sat}{Maximum recharge rate [mm/timestep] — demand only.
+Default 2.}
+}
+}
+
+\section{Groundwater storage routing}{
+
+\describe{
+\item{kb}{Baseflow time constant [hour * mm^{1-m}]. Default 200.}
+\item{m}{Exponent of baseflow non-linear storage [-]. m=1 gives linear
+reservoir. Default 1.}
+\item{Sg_max}{Maximum groundwater store [mm]. 0 = unlimited. Default 0.}
+}
+}
+
+\section{Surface routing (cascade of two linear reservoirs)}{
+
+\describe{
+\item{k1}{Time constant of first surface reservoir [timesteps].
+Default 5.}
+\item{k2}{Time constant of second surface reservoir [timesteps].
+Default 5.}
+}
+}
+
+\section{Constant flow addition}{
+
+\describe{
+\item{qc}{Constant flow [m³/s] added to total flow at every timestep.
+Positive = return flow; negative = abstraction. Default 0.}
+}
+}
+
 \examples{
-p <- pdm_params(dist = "pareto", cmax = 350, b = 0.4)
-pdm_validate_params(p)
+# Standard recharge, Pareto distribution
+p <- pdm_params(dist = "pareto", cmax = 350, b = 0.4,
+                fc = 1.0, td = 0L, kb = 150, m = 1, k1 = 5, k2 = 10)
+
+# Demand-based recharge
+p2 <- pdm_params(recharge_type = "demand",
+                 alpha = 0.3, beta = 2, q_sat = 1.5, Sg_max = 300)
 
 }

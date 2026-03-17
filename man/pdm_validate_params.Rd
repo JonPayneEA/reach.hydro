@@ -7,12 +7,11 @@
 pdm_validate_params(p)
 }
 \arguments{
-\item{p}{A \code{PdmParams} object (or plain named list).}
+\item{p}{A \code{PdmParams} object or plain named list.}
 }
 \value{
 \code{p} invisibly if valid; stops with an informative error otherwise.
 }
 \description{
-Checks physical plausibility of all parameters. Called automatically by
-\code{\link[=pdm_params]{pdm_params()}}. Can be called explicitly after manual modification.
+Validate a PdmParams object
 }

@@ -11,8 +11,9 @@ capacity_runoff(P, S, dist, params)
 
 \item{S}{Current soil moisture [mm].}
 
-\item{dist}{Distribution name. One of \code{"pareto"}, \code{"uniform"},
-\code{"exponential"}, \code{"glogistic"}, \code{"normal"}, \code{"lognormal"}.}
+\item{dist}{One of \code{"pareto"}, \code{"rectangular"}, \code{"exponential"},
+\code{"triangular"}, \code{"lognormal"}. These correspond directly to
+Appendices A-E of Moore (2007).}
 
 \item{params}{A \code{PdmParams} object or compatible named list.}
 }

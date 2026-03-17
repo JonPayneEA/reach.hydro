@@ -41,8 +41,8 @@ A \code{data.table} with columns \code{time_min}, \code{time_hr}, and
 Creates the dimensionless temporal profile for the ReFH design storm
 (Kjeldsen 2007), scaled to the T-year storm depth for a given duration.
 The profile uses the summer (default) or winter double-triangle distribution
-to produce a time-varying rainfall input for \code{\link[=refh2_run]{refh2_run()}}.
+to produce a time-varying rainfall input for \code{\link[=refh_run]{refh_run()}}.
 }
 \seealso{
-\code{\link[=feh_ddf]{feh_ddf()}}, \code{\link[=refh2_run]{refh2_run()}}
+\code{\link[=feh_ddf]{feh_ddf()}}, \code{\link[=refh_run]{refh_run()}}
 }

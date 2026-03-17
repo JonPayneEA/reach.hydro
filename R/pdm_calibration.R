@@ -70,7 +70,7 @@ calibrate_pdm <- function(rain, pet, obs_q,
 
   metric <- match.arg(metric, c("nse", "kge"))
   dist   <- match.arg(dist,
-    c("pareto", "uniform", "exponential", "glogistic", "normal", "lognormal"))
+    c("pareto", "rectangular", "exponential", "triangular", "lognormal"))
 
   pnames <- names(par_init)
   lower  <- unlist(par_lo[pnames])
@@ -160,8 +160,8 @@ compare_distributions <- function(rain, pet,
                                   ),
                                   warmup = 0L) {
 
-  dists <- c("pareto", "uniform", "exponential",
-             "glogistic", "normal", "lognormal")
+  dists <- c("pareto", "rectangular", "exponential",
+             "triangular", "lognormal")
   idx   <- seq(warmup + 1L, length(rain))
 
   rows <- lapply(dists, function(d) {

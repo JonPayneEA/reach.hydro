@@ -66,7 +66,7 @@
 #'         return_period = 100,
 #'         rmed_1h = 12, rmed_1d = 38, saar = 900)
 #'
-#' @seealso [feh_design_storm()], [refh2_run()]
+#' @seealso [feh_design_storm()], [refh_run()]
 #' @export
 feh_ddf <- function(duration_hr,
                     return_period,
@@ -140,7 +140,7 @@ feh_ddf <- function(duration_hr,
 #' Creates the dimensionless temporal profile for the ReFH design storm
 #' (Kjeldsen 2007), scaled to the T-year storm depth for a given duration.
 #' The profile uses the summer (default) or winter double-triangle distribution
-#' to produce a time-varying rainfall input for [refh2_run()].
+#' to produce a time-varying rainfall input for [refh_run()].
 #'
 #' @param duration_hr     Storm duration \[hours\]. Typical values: 1, 2, 4, 8.
 #' @param return_period   Return period \[years\].
@@ -155,7 +155,7 @@ feh_ddf <- function(duration_hr,
 #' @return A `data.table` with columns `time_min`, `time_hr`, and
 #'   `rainfall_mm` (depth per timestep).
 #'
-#' @seealso [feh_ddf()], [refh2_run()]
+#' @seealso [feh_ddf()], [refh_run()]
 #' @export
 feh_design_storm <- function(duration_hr,
                               return_period,

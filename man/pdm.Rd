@@ -4,78 +4,73 @@
 \alias{pdm}
 \title{Run the PDM rainfall-runoff model}
 \usage{
-pdm(rain, pet, params = list(), dist = "pareto", S0 = NULL, Sg0 = 0, Ss0 = 0)
+pdm(
+  rain,
+  pet,
+  params = list(),
+  dist = "pareto",
+  S0 = NULL,
+  Sg0 = 0,
+  Ss10 = 0,
+  Ss20 = 0
+)
 }
 \arguments{
 \item{rain}{Numeric vector of catchment-average rainfall [mm/timestep],
-OR a \code{Rainfall_Daily} / \code{Rainfall_15min} object from reach.io.
-If a HydroData object is supplied, \code{pet} must also be a
-HydroData object; use \code{\link[=as_pdm_input]{as_pdm_input()}} for more control over
-quality filtering and alignment.}
+OR a \code{Rainfall_Daily} / \code{Rainfall_15min} reach.io object.}
 
 \item{pet}{Numeric vector of potential evapotranspiration [mm/timestep],
-OR any reach.io HydroData object containing PET values.
-Must be the same length as \code{rain} (after alignment).}
+OR a reach.io HydroData object containing PET.}
 
-\item{params}{A \code{PdmParams} object (from \code{\link[=pdm_params]{pdm_params()}}) or a named list of
-parameter values. Missing values are filled with defaults.
-See \code{\link[=pdm_params]{pdm_params()}} for the full parameter reference.}
+\item{params}{A \code{PdmParams} object from \code{\link[=pdm_params]{pdm_params()}}, or a named list.
+All Table 1 parameters are supported; see \code{\link[=pdm_params]{pdm_params()}} for
+the full reference.}
 
-\item{dist}{Capacity distribution. One of \code{"pareto"} (default),
-\code{"uniform"}, \code{"exponential"}, \code{"glogistic"}, \code{"normal"},
-\code{"lognormal"}. Ignored if \code{params} is a \code{PdmParams} object
-(use \code{params$dist} in that case).}
+\item{dist}{Capacity distribution (ignored if \code{params} is a \code{PdmParams}).
+One of \code{"pareto"} (default), \code{"rectangular"}, \code{"exponential"},
+\code{"triangular"}, \code{"normal"}, \code{"lognormal"}.}
 
 \item{S0}{Initial soil moisture [mm]. Default: 50\% of Smax.}
 
 \item{Sg0}{Initial groundwater store [mm]. Default: 0.}
 
-\item{Ss0}{Initial surface store [mm]. Default: 0.}
+\item{Ss10}{Initial state of surface reservoir 1 [mm]. Default: 0.}
+
+\item{Ss20}{Initial state of surface reservoir 2 [mm]. Default: 0.}
 }
 \value{
-A \code{ReachHydroResult} object (a \code{data.table} subclass) with columns:
+A \code{ReachHydroResult} (data.table subclass) with columns:
 \describe{
-\item{rain}{Input rainfall [mm/ts]}
+\item{rain}{Raw input rainfall [mm/ts]}
+\item{rain_eff}{Rainfall after fc scaling and td lag [mm/ts]}
 \item{pet}{Input PET [mm/ts]}
 \item{S}{Soil moisture [mm]}
 \item{cstar}{Critical capacity c* [mm]}
 \item{AET}{Actual evapotranspiration [mm/ts]}
 \item{SMD}{Soil moisture deficit = Smax - S [mm]}
-\item{direct_runoff}{Saturation-excess runoff from soil store [mm/ts]}
-\item{Qd}{Drainage to groundwater store [mm/ts]}
+\item{direct_runoff}{Direct runoff from soil store [mm/ts]}
+\item{Qd}{Recharge to groundwater store [mm/ts]}
 \item{Qs}{Inflow to surface store [mm/ts]}
-\item{Qf}{Fast (surface store) outflow [mm/ts]}
-\item{Qb}{Baseflow (groundwater store) outflow [mm/ts]}
-\item{Q}{Total flow = Qf + Qb [mm/ts]}
+\item{Qf}{Fast flow (surface cascade outflow) [mm/ts]}
+\item{Qb}{Baseflow (groundwater store outflow) [mm/ts]}
+\item{Q}{Total flow = Qf + Qb + qc [mm/ts]}
 \item{Sg}{Groundwater store state [mm]}
-\item{Ss}{Surface store state [mm]}
+\item{Ss1}{Surface reservoir 1 state [mm]}
+\item{Ss2}{Surface reservoir 2 state [mm]}
 }
-Attributes: \code{dist}, \code{Smax}, \code{params} (the resolved \code{PdmParams}).
 }
 \description{
-Implements the Probability Distributed Model (PDM) of Moore (2007).
-The soil moisture store uses a selectable capacity distribution to compute
-saturation-excess runoff. Drainage feeds a non-linear groundwater store
-(baseflow) and a linear surface store (fast flow).
+Implements the full Probability Distributed Model (PDM) of Moore (2007),
+including all parameters from Table 1 of the paper.
 }
 \examples{
-# Minimal example with Pareto distribution (plain vectors)
 set.seed(1)
 rain <- pmax(0, rnorm(365, 2, 3))
 pet  <- pmax(0, 2 + rnorm(365, 0, 0.3))
-p    <- pdm_params(dist = "pareto", cmax = 350, b = 0.4)
+p    <- pdm_params(dist = "pareto", cmax = 350, b = 0.4,
+                   fc = 1.0, td = 0L, kb = 150, m = 1, k1 = 5, k2 = 10)
 res  <- pdm(rain, pet, params = p)
 summary(res)
-
-# Using reach.io HydroData objects directly
-\dontrun{
-p      <- pdm_params(dist = "pareto", cmax = 350, b = 0.4)
-res    <- pdm(rainfall_obj, pet_obj, params = p)
-
-# For more control over quality filtering and alignment:
-inputs <- as_pdm_input(rainfall_obj, pet_obj)
-res    <- pdm(inputs$rain, inputs$pet, params = p)
-}
 
 }
 \references{
@@ -84,6 +79,5 @@ Moore, R.J. (2007). The PDM rainfall-runoff model.
 \doi{10.5194/hess-11-483-2007}
 }
 \seealso{
-\code{\link[=pdm_params]{pdm_params()}}, \code{\link[=calibrate_pdm]{calibrate_pdm()}}, \code{\link[=compare_distributions]{compare_distributions()}},
-\code{\link[=as_pdm_input]{as_pdm_input()}}, \code{\link[=as_rain_input]{as_rain_input()}}
+\code{\link[=pdm_params]{pdm_params()}}, \code{\link[=calibrate_pdm]{calibrate_pdm()}}, \code{\link[=compare_distributions]{compare_distributions()}}
 }
