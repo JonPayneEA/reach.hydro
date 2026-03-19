@@ -169,9 +169,10 @@ max(res$Q_mm)
 
 ## Upcoming features
 
-See [UPCOMING_FEATURES.md](UPCOMING_FEATURES.md) for the full roadmap, including
-HiFlows-UK zip ingestion, Rcpp PDM acceleration, baseflow separation, FEH
-regional DDF parameters, and `reach.validate` integration.
+See [UPCOMING_FEATURES.md](UPCOMING_FEATURES.md) for the full roadmap.
+Flood forecasting enhancements (Rcpp PDM acceleration, probabilistic ensembles,
+NRFA data ingestion, `reach.validate` integration) are prioritised. Design
+hydrology extensions (ReFH2 verification, regional DDF, FSR) are secondary.
 
 ---
 
