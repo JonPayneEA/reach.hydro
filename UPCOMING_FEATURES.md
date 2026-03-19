@@ -1,3 +1,4 @@
+
 # Upcoming Features - reach.hydro
 
 Planned enhancements and new capabilities for `reach.hydro`.
@@ -33,7 +34,42 @@ objectives simultaneously (e.g. KGE on high flows + NSE on low flows). Returns
 a Pareto front rather than a single parameter set, enabling uncertainty-aware
 operational use.
 
-### 1.3 Monte Carlo uncertainty propagation
+### 1.3 Dual-zone and multi-zone PDM
+
+The standard PDM uses a single soil moisture store. Many UK catchments exhibit
+mixed responses (e.g. fast-responding urban/impervious areas alongside slower
+rural areas) that a single-zone structure cannot represent well. This extension
+partitions the catchment into two or more zones, each with independent PDM
+parameters, and combines their outputs as a weighted sum.
+
+```r
+# Two-zone model: 30% urban, 70% rural
+params_urban <- pdm_params(cmax = 20,  b = 0.3, kg = 10,  ...)
+params_rural <- pdm_params(cmax = 150, b = 1.2, kg = 120, ...)
+
+result <- pdm_multizone(
+  rain, pet,
+  zones = list(urban = params_urban, rural = params_rural),
+  weights = c(urban = 0.30, rural = 0.70)
+)
+
+# Weights can also be calibrated jointly
+cal <- calibrate_pdm_multizone(
+  rain, pet, obs_flow,
+  n_zones = 2,
+  fixed_weights = FALSE
+)
+```
+
+Scope:
+- `pdm_multizone()` runs each zone's PDM loop independently then combines
+  direct runoff and baseflow contributions by zone weight.
+- Zone weights optionally treated as free parameters during calibration.
+- Compatible with §1.1 (Rcpp loop) and §1.2 (multi-objective calibration).
+- Initial implementation targets two zones (dual-zone); generalised to
+  n-zones in a follow-up.
+
+### 1.4 Monte Carlo uncertainty propagation
 
 Add `pdm_uncertainty()` to sample from a parameter distribution (or bootstrap
 calibration residuals) and return an ensemble of flow series with quantile
