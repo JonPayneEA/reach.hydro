@@ -167,6 +167,14 @@ max(res$Q_mm)
 
 ---
 
+## Upcoming features
+
+See [UPCOMING_FEATURES.md](UPCOMING_FEATURES.md) for the full roadmap, including
+HiFlows-UK zip ingestion, Rcpp PDM acceleration, baseflow separation, FEH
+regional DDF parameters, and `reach.validate` integration.
+
+---
+
 ## Known TODOs
 
 - Replace `PdmParams` / `ReachHydroResult` stubs with full `S7` class

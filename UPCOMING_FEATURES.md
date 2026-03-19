@@ -184,6 +184,42 @@ to and from `Flow_Daily` / `Flow_15min` HydroData objects. This enables PDM
 simulations to be stored and retrieved via the reach.io data layer without
 manual extraction.
 
+### 6.3 reach.validate integration
+
+Provide a compatibility layer for the `reach.validate` package (analogous to
+`reach_io_compat.R`) so that model outputs from `reach.hydro` can be passed
+directly into `reach.validate` validation workflows.
+
+Planned bindings:
+
+```r
+# Coerce a PDM simulation result to a reach.validate ModelRun object
+val_run <- as_model_run(pdm_result, observed = obs_flow, warmup = 365)
+
+# Run the full reach.validate metric suite and return a tidy report
+report  <- validate(val_run)
+report$metrics   # data.frame: NSE, KGE, PBIAS, FAR, RVE, …
+report$plots     # list of ggplot2 objects (hydrograph, FDC, scatter)
+
+# Comparison across calibration parameter sets or distributions
+compare_runs <- lapply(dist_list, \(d) {
+  res <- pdm(rain, pet, calibrate_pdm(rain, pet, obs_flow, dist = d)$params)
+  as_model_run(res, observed = obs_flow)
+})
+validation_table(compare_runs)
+```
+
+Scope:
+- Detect `reach.validate` at runtime via `requireNamespace()` — package
+  remains fully functional without it (same pattern as `reach.io`).
+- `as_model_run()` aligns simulated and observed series by date, applies
+  the warmup mask, and attaches metadata (catchment ID, model type, run date).
+- Expose `reach.hydro`-specific split-period validation helpers:
+  `split_validation()` — calibration/validation period split with metrics
+  reported for each period separately.
+- Feed FEH flood frequency fit objects into `reach.validate` benchmark
+  comparisons against observed AMAX records.
+
 ---
 
 ## 7. Documentation and Validation
@@ -206,4 +242,4 @@ examples.
 
 ---
 
-*Last updated: 2026-03-19*
+*Last updated: 2026-03-19 — added reach.validate integration (§6.3), linked from README*
