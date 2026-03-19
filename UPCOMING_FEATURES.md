@@ -1,4 +1,4 @@
-# Upcoming Features — reach.hydro
+# Upcoming Features - reach.hydro
 
 Planned enhancements and new capabilities for `reach.hydro`.
 
@@ -13,7 +13,7 @@ Items within each section run roughly top-to-bottom by priority.
 
 ---
 
-## PRIMARY — Flood Forecasting
+## PRIMARY - Flood Forecasting
 
 ---
 
@@ -72,9 +72,9 @@ Planned API:
 hf <- read_hiflows_zip("HiFlowsUK_v4.zip")
 
 # Returns a named list of HiFlowsStation objects
-# hf[["25001"]]$amax  — data.table of annual maxima
-# hf[["25001"]]$pot   — data.table of peaks over threshold
-# hf[["25001"]]$meta  — list of station metadata
+# hf[["25001"]]$amax  - data.table of annual maxima
+# hf[["25001"]]$pot   - data.table of peaks over threshold
+# hf[["25001"]]$meta  - list of station metadata
 
 # Direct pass-through to FEH functions for index flood / pooled analysis
 fit_pool <- feh_pooled(
@@ -124,13 +124,13 @@ uses `bfihost`).
 Extend `flow_statistics.R` with tools useful for evaluating model skill across
 the full flow regime:
 
-- `flow_deficit()` — volume and duration of low-flow spells below a threshold
-- `flow_recession()` — automatic recession curve fitting (master recession curve)
-- `q_n_day()` — n-day minimum/maximum flow (e.g. Q7 for low-flow indices)
+- `flow_deficit()` - volume and duration of low-flow spells below a threshold
+- `flow_recession()` - automatic recession curve fitting (master recession curve)
+- `q_n_day()` - n-day minimum/maximum flow (e.g. Q7 for low-flow indices)
 
 ---
 
-## 4. Model Validation — reach.validate Integration
+## 4. Model Validation - reach.validate Integration
 
 Provide a compatibility layer for the `reach.validate` package (analogous to
 `reach_io_compat.R`) so that PDM simulation outputs can be passed directly into
@@ -154,11 +154,11 @@ validation_table(compare_runs)
 ```
 
 Scope:
-- Detect `reach.validate` at runtime via `requireNamespace()` — package
+- Detect `reach.validate` at runtime via `requireNamespace()` - package
   remains fully functional without it (same pattern as `reach.io`).
 - `as_model_run()` aligns simulated and observed series by date, applies the
   warmup mask, and attaches metadata (catchment ID, model type, run date).
-- `split_validation()` — calibration/validation period split with metrics
+- `split_validation()` - calibration/validation period split with metrics
   reported for each period separately.
 - Feed FEH flood frequency fit objects into `reach.validate` benchmark
   comparisons against observed AMAX records.
@@ -196,7 +196,7 @@ networks.
 
 ---
 
-## SECONDARY — Design Hydrology
+## SECONDARY - Design Hydrology
 
 *Lower priority. These features support design flood estimation workflows
 (ReFH2, FSR, DDF) rather than operational forecasting.*
@@ -255,11 +255,11 @@ p <- refh2_params(descs)
 
 Priority order reflects the primary/secondary split above:
 
-1. **PDM calibration and operational forecasting** — from raw inputs through
+1. **PDM calibration and operational forecasting** - from raw inputs through
    calibration, validation via `reach.validate`, and ensemble uncertainty.
-2. **FEH Vol 3 flood frequency** — single-site and pooled analysis with
+2. **FEH Vol 3 flood frequency** - single-site and pooled analysis with
    HiFlows-UK data ingestion, for catchment verification.
-3. **Design flood estimation** *(secondary)* — ReFH2 and FSR with FEH Vol 4
+3. **Design flood estimation** *(secondary)* - ReFH2 and FSR with FEH Vol 4
    storms.
 
 ### 7.2 Expanded test coverage
@@ -270,4 +270,4 @@ design hydrology methods.
 
 ---
 
-*Last updated: 2026-03-19 — restructured to prioritise flood forecasting over design hydrology*
+*Last updated: 2026-03-19 - restructured to prioritise flood forecasting over design hydrology*
