@@ -23,7 +23,7 @@ the REACH framework within the flode meta-package.
 | Rainfall frequency (DDF) | FEH Vol 4 | `feh_ddf()`, `feh_design_storm()` |
 | ReFH2 rainfall-runoff | Kjeldsen (2007) | `refh2_params()`, `refh2_run()` |
 | FSR/FEH unit hydrograph | NERC (1975) | `fsr_params()`, `fsr_run()` |
-| Flow statistics | — | `flow_stats()`, `flow_duration_curve()` |
+| Flow statistics | - | `flow_stats()`, `flow_duration_curve()` |
 | Flood frequency (convenience) | FEH | `fit_glo()`, `fit_gev()` |
 
 ---
@@ -62,7 +62,7 @@ cal <- calibrate_pdm(rain, pet, obs_q, dist = "pareto", metric = "kge")
 cal$kge
 ```
 
-### FEH Vol 3 — statistical flood frequency
+### FEH Vol 3 - statistical flood frequency
 
 ```r
 # Single-site GLO fit with bootstrap confidence intervals
@@ -82,7 +82,7 @@ peaks <- peaks_over_threshold(flow, dates, threshold = 150)
 fit_pot <- feh_pot(peaks$peak_flow, threshold = 150, n_years = 30)
 ```
 
-### FEH Vol 4 — rainfall frequency and design storm
+### FEH Vol 4 - rainfall frequency and design storm
 
 ```r
 # T-year rainfall depth at multiple durations
@@ -147,9 +147,9 @@ max(res$Q_mm)
 | Pareto (default) | cmin, cmax, b | ✓ | ✓ |
 | Uniform | cmin, cmax | ✓ | ✓ |
 | Exponential | cmax | ✓ | ✓ |
-| Generalised Logistic | cmin, cmax, b | — | — |
-| Normal | mu_c, sigma_c | — | — |
-| Log-Normal | mu_lnc, sigma_lnc | ✓ | — |
+| Generalised Logistic | cmin, cmax, b | - | - |
+| Normal | mu_c, sigma_c | - | - |
+| Log-Normal | mu_lnc, sigma_lnc | ✓ | - |
 
 ---
 
@@ -162,8 +162,17 @@ max(res$Q_mm)
 | Owner | Deputy Director (Technology) |
 | Steward | Lead Developer (G7) |
 | Parent document | Data & Digital Asset Governance Framework v1.3 |
-| Dependency management | `renv` — run `renv::restore()` on first use |
-| Testing | `testthat` — 70% line coverage required for Tier 1 functions |
+| Dependency management | `renv` - run `renv::restore()` on first use |
+| Testing | `testthat` - 70% line coverage required for Tier 1 functions |
+
+---
+
+## Upcoming features
+
+See [UPCOMING_FEATURES.md](UPCOMING_FEATURES.md) for the full roadmap.
+Flood forecasting enhancements (Rcpp PDM acceleration, probabilistic ensembles,
+NRFA data ingestion, `reach.validate` integration) are prioritised. Design
+hydrology extensions (ReFH2 verification, regional DDF, FSR) are secondary.
 
 ---
 
