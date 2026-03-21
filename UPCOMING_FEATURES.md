@@ -80,6 +80,36 @@ ens <- pdm_uncertainty(rain, pet, cal$params, n = 500, method = "bootstrap")
 ens$quantiles   # data.table: q05, q25, q50, q75, q95 at each timestep
 ```
 
+### 1.5 State updating — removing the burn-in requirement *(implemented)*
+
+`update_pdm_states()` runs the PDM over a recent assimilation window to produce
+calibrated initial conditions (`S0`, `Sg0`, `Ss10`, `Ss20`) for a forecast run,
+removing the need for a warm-up period. Two methods are provided:
+
+- **`"window"`** — run the model over the last N timesteps of observed rain/PET;
+  use the final states as initial conditions. Effective for windows ≥ 30 days.
+- **`"inversion"`** — as `"window"`, then algebraically adjust the groundwater
+  store `Sg` and surface routing stores `Ss1`/`Ss2` so that the implied
+  instantaneous outflow matches the observed flow at the forecast origin.
+
+```r
+upd <- update_pdm_states(
+  rain  = tail(rain_recent, 30L),
+  pet   = tail(pet_recent,  30L),
+  obs_q = tail(obs_q_recent, 30L),
+  params  = cal$params,
+  method  = "inversion"
+)
+
+# Pass updated states directly into the forecast run
+fcast <- pdm(rain_fcast, pet_fcast, params = cal$params,
+             S0 = upd$S0, Sg0 = upd$Sg0, Ss10 = upd$Ss10, Ss20 = upd$Ss20)
+```
+
+See [design/pdm-state-updating.md](design/pdm-state-updating.md) for the full
+design, including the inversion algebra, window length guidelines, and planned
+extensions (ensemble method, reach.validate integration, write_pdm_run() hook).
+
 ---
 
 ## 2. Operational Data Ingestion
