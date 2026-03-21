@@ -230,6 +230,21 @@ gauge and catchment boundary coordinates, replacing the current placeholder in
 `areal_rainfall()`. Supports operational areal rainfall estimation from raingauge
 networks.
 
+### 5.5 PDM run storage — Parquet + manifest convention
+
+Implement `write_pdm_run()` and `read_pdm_run()` helpers (Tier 2) to persist
+`ReachHydroResult` objects to disk in a governed, reproducible format. Uses
+Apache Parquet for the time series and a companion `manifest.json` for provenance
+and parameter metadata.
+
+Addresses the scale problem: 30-year 15-minute hindcasts (~1.05M rows) and
+calibration jobs that must remain reproducible and auditable under the Data &
+Digital Asset Governance Framework.
+
+See [design/pdm-run-storage.md](design/pdm-run-storage.md) for the full design,
+including directory structure, manifest schema, calibration conventions, and
+alignment with §1.2, §1.4, §5.2, and §5.3.
+
 ---
 
 ## SECONDARY - Design Hydrology
