@@ -93,6 +93,6 @@
   cs     <- .newton_raphson_cstar(S, cdf_fn, clo, chi)
   fsat   <- cdf_fn(cs)
   avail  <- Smax - S
-  runoff <- P * fsat + pmax(0, P - avail * (1 - fsat)) * (1 - fsat)
+  runoff <- P * fsat + pmax(0, P - avail) * (1 - fsat)
   pmin(pmax(runoff, 0), P)
 }

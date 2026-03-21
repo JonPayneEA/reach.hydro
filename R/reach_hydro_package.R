@@ -13,20 +13,20 @@
 
 #' reach.hydro: Core hydrological calculations for the REACH framework
 #'
-#' Provides the PDM rainfall-runoff model (Moore 2007) with six selectable
+#' Provides the PDM rainfall-runoff model (Moore 2007) with five selectable
 #' capacity distributions, calibration utilities, goodness-of-fit metrics,
 #' flow statistics, unit conversions, catchment aggregation, and flood
 #' frequency tools.
 #'
 #' @section PDM rainfall-runoff model:
 #' The main entry point is [pdm()]. Parameters are validated via [pdm_params()]
-#' and [pdm_validate_params()]. Six soil-moisture capacity distributions are
-#' supported: `"pareto"`, `"uniform"`, `"exponential"`, `"glogistic"`,
-#' `"normal"`, `"lognormal"` (Moore 2007, Appendices A-F).
+#' and [pdm_validate_params()]. Five soil-moisture capacity distributions are
+#' supported: `"pareto"`, `"rectangular"`, `"exponential"`, `"triangular"`,
+#' `"lognormal"` (Moore 2007, Appendices A-E).
 #'
 #' @section Calibration:
 #' [calibrate_pdm()] optimises parameters against observed flow using
-#' Nelder-Mead. [compare_distributions()] runs all six distributions on the
+#' Nelder-Mead. [compare_distributions()] runs all five distributions on the
 #' same forcing data and returns a summary `data.table`.
 #'
 #' @section Goodness-of-fit:
