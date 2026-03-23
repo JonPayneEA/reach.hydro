@@ -157,7 +157,7 @@ test_that("pdm() errors on empty input", {
   expect_error(pdm(numeric(0), numeric(0), params = .p_pareto), "empty")
 })
 
-test_that("pdm() runs successfully for all six distributions", {
+test_that("pdm() runs successfully for all five distributions", {
   dists <- c("pareto","rectangular","exponential","triangular","lognormal")
   for (d in dists) {
     p <- pdm_params(dist = d, cmax = 300, mu_lnc = 4.9, sigma_lnc = 0.4, k1 = 5, k2 = 5)
@@ -288,9 +288,9 @@ test_that("mm_to_m3s and m3s_to_mm are inverse operations", {
 # compare_distributions
 # =============================================================================
 
-test_that("compare_distributions returns 6 rows", {
+test_that("compare_distributions returns 5 rows", {
   tbl <- compare_distributions(.rain[1:100], .pet[1:100])
-  expect_equal(nrow(tbl), 6L)
+  expect_equal(nrow(tbl), 5L)
   expect_true(data.table::is.data.table(tbl))
 })
 

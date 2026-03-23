@@ -26,7 +26,7 @@
 #' @section Probability-distributed soil store:
 #' \describe{
 #'   \item{dist}{Capacity distribution: `"pareto"` (default), `"rectangular"`,
-#'     `"exponential"`, `"triangular"`, `"normal"`, `"lognormal"`.}
+#'     `"exponential"`, `"triangular"`, `"lognormal"`.}
 #'   \item{cmin}{Minimum store capacity \[mm\]. Default 0.}
 #'   \item{cmax}{Maximum store capacity \[mm\]. Default 400.}
 #'   \item{b}{Exponent of Pareto distribution (also used by triangular as
@@ -165,6 +165,7 @@ pdm_validate_params <- function(p) {
   chk(p$Sg_max >= 0,        "Sg_max must be >= 0")
   chk(p$k1 > 0,             "k1 (surface reservoir 1 time constant) must be > 0")
   chk(p$k2 > 0,             "k2 (surface reservoir 2 time constant) must be > 0")
+  chk(p$alpha >= 0 && p$alpha <= 1, "alpha must be in [0,1]")
 
   if (p$recharge_type == "standard") {
     chk(p$kg > 0,           "kg must be > 0 for standard recharge")
@@ -172,13 +173,10 @@ pdm_validate_params <- function(p) {
     chk(p$St >= 0,          "St must be >= 0")
   }
   if (p$recharge_type == "demand") {
-    chk(p$alpha > 0 && p$alpha <= 1, "alpha must be in (0,1] for demand recharge")
+    chk(p$alpha > 0,        "alpha must be > 0 for demand recharge")
     chk(p$beta > 0,         "beta must be > 0 for demand recharge")
     chk(p$q_sat > 0,        "q_sat must be > 0 for demand recharge")
     chk(p$Sg_max > 0,       "Sg_max must be > 0 for demand recharge")
-  }
-  if (p$recharge_type == "split") {
-    chk(p$alpha >= 0 && p$alpha <= 1, "alpha must be in [0,1] for split recharge")
   }
 
   if (length(errs) > 0)
@@ -196,8 +194,6 @@ print.PdmParams <- function(x, ...) {
   cat(sprintf("  cmin / cmax     : %.1f / %.1f mm\n", x$cmin, x$cmax))
   if (x$dist %in% c("pareto"))
     cat(sprintf("  b (shape)       : %.3f\n", x$b))
-  if (x$dist == "normal")
-    cat(sprintf("  mu_c / sigma_c  : %.1f / %.1f mm\n", x$mu_c, x$sigma_c))
   if (x$dist == "lognormal")
     cat(sprintf("  mu_lnc/sigma_lnc: %.2f / %.2f\n", x$mu_lnc, x$sigma_lnc))
   cat(sprintf("  be              : %.1f\n", x$be))

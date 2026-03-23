@@ -47,14 +47,14 @@ renv::restore()
 ```r
 library(reach.hydro)
 
-p   <- pdm_params(dist = "pareto", cmax = 350, b = 0.4, St = 20, kg = 150, ks = 8)
+p   <- pdm_params(dist = "pareto", cmax = 350, b = 0.4, St = 20, kg = 150, k1 = 8)
 res <- pdm(rain, pet, params = p)
 summary(res)
 
 # Performance against observed flow
 gof_metrics(obs_q, res$Q, warmup = 365)
 
-# Compare all six distributions
+# Compare all five distributions
 tbl <- compare_distributions(rain, pet, obs_q = obs_q)
 
 # Calibrate

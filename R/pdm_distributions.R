@@ -42,7 +42,7 @@
 .pareto_cstar <- function(S, cmin, cmax, b) {
   Smax <- .pareto_smax(cmin, cmax, b)
   S    <- pmax(0, pmin(S, Smax))
-  cs   <- cmax - (cmax - cmin) * (1 - S / (cmax - cmin))^(1 / (1 + b))
+  cs   <- cmax - (cmax - cmin) * (1 - S / Smax)^(1 / (1 + b))
   pmin(pmax(cs, cmin), cmax)
 }
 

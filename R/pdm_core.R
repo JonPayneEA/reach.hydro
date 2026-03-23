@@ -35,7 +35,7 @@
 #'               the full reference.
 #' @param dist   Capacity distribution (ignored if `params` is a `PdmParams`).
 #'               One of `"pareto"` (default), `"rectangular"`, `"exponential"`,
-#'               `"triangular"`, `"normal"`, `"lognormal"`.
+#'               `"triangular"`, `"lognormal"`.
 #' @param S0     Initial soil moisture \[mm\]. Default: 50% of Smax.
 #' @param Sg0    Initial groundwater store \[mm\]. Default: 0.
 #' @param Ss10   Initial state of surface reservoir 1 \[mm\]. Default: 0.
@@ -127,6 +127,8 @@ pdm <- function(rain, pet,
   n <- length(rain)
   if (length(pet) != n) stop("`rain` and `pet` must be the same length.", call. = FALSE)
   if (n == 0L)          stop("`rain` is empty.", call. = FALSE)
+  if (anyNA(rain))      stop("`rain` contains NA values.", call. = FALSE)
+  if (anyNA(pet))       stop("`pet` contains NA values.", call. = FALSE)
 
   # ---- apply rainfall factor and time delay ---------------------------------
   rain_eff <- .apply_rainfall_transform(rain, fc = p$fc, td = p$td)

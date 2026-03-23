@@ -25,7 +25,7 @@
 #' @param dist     Capacity distribution (default `"pareto"`).
 #' @param warmup   Integer. Timesteps excluded from objective. Default 365.
 #' @param par_init Named list of initial parameter values. Default calibrates
-#'                 `cmax`, `b`, `St`, `kg`, `ks`.
+#'                 `cmax`, `b`, `St`, `kg`, `k1`.
 #' @param par_lo   Named list of lower bounds (same names as `par_init`).
 #' @param par_hi   Named list of upper bounds (same names as `par_init`).
 #' @param fixed    Named list of parameters held constant during calibration.
@@ -57,11 +57,11 @@ calibrate_pdm <- function(rain, pet, obs_q,
                           dist     = "pareto",
                           warmup   = 365L,
                           par_init = list(cmax = 300, b = 0.4, St = 10,
-                                          kg = 150, ks = 8),
+                                          kg = 150, k1 = 8),
                           par_lo   = list(cmax = 50,  b = 0.05, St = 0,
-                                          kg = 10,  ks = 1),
+                                          kg = 10,  k1 = 1),
                           par_hi   = list(cmax = 800, b = 2.0,  St = 100,
-                                          kg = 500, ks = 60),
+                                          kg = 500, k1 = 60),
                           fixed    = list(cmin = 0, be = 5, bg = 1,
                                           Sg_max = 0, use_split = FALSE,
                                           alpha = 0.4),
@@ -125,9 +125,9 @@ calibrate_pdm <- function(rain, pet, obs_q,
   )
 }
 
-#' Compare all six capacity distributions on the same forcing data
+#' Compare all five capacity distributions on the same forcing data
 #'
-#' Runs [pdm()] with each of the six supported distributions and returns a
+#' Runs [pdm()] with each of the five supported distributions and returns a
 #' summary `data.table` with flow statistics and, optionally, performance
 #' metrics against observed flow.
 #'
@@ -156,7 +156,7 @@ compare_distributions <- function(rain, pet,
                                     cmin = 0, cmax = 350, b = 0.4,
                                     mu_c = 175, sigma_c = 70,
                                     mu_lnc = 5.0, sigma_lnc = 0.5,
-                                    St = 20, kg = 150, ks = 8
+                                    St = 20, kg = 150, k1 = 8
                                   ),
                                   warmup = 0L) {
 
