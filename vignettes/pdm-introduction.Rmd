@@ -1,0 +1,267 @@
+---
+title: "Introduction to the PDM Rainfall-Runoff Model"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to the PDM Rainfall-Runoff Model}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse  = TRUE,
+  comment   = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+library(reach.hydro)
+```
+
+The **Probability Distributed Model (PDM)** (Moore, 2007) is a conceptual
+rainfall-runoff model used operationally for flood forecasting. It represents a
+catchment as a probability distribution of soil moisture storage capacities, and
+routes runoff through groundwater and surface linear reservoirs. This vignette
+walks through a complete PDM workflow using synthetic forcing data.
+
+---
+
+## 1. Synthetic forcing data
+
+We generate three years of daily rainfall and potential evapotranspiration (PET)
+with a realistic seasonal cycle. Rainfall is highest in winter, PET highest in
+summer.
+
+```{r forcing}
+set.seed(42)
+n      <- 365 * 3
+dates  <- seq.Date(as.Date("2020-10-01"), by = "day", length.out = n)
+t_seq  <- seq_len(n)
+season <- 0.5 + 0.5 * cos(2 * pi * (t_seq - 30) / 365)  # 1 in winter, 0 in summer
+
+rain <- pmax(0, rnorm(n, mean = 2.5 * season, sd = 3))
+pet  <- pmax(0, 3 * (1 - season) + rnorm(n, 0, 0.3))
+
+cat(sprintf(
+  "Forcing: %d days | mean rain = %.2f mm/day | mean PET = %.2f mm/day\n",
+  n, mean(rain), mean(pet)
+))
+```
+
+```{r plot-forcing, fig.cap = "Synthetic daily rainfall and PET over three years."}
+par(mfrow = c(2, 1), mar = c(2, 4, 1, 1))
+
+plot(dates, rain, type = "h", col = "steelblue", lwd = 0.6,
+     ylab = "Rainfall (mm/day)", xlab = "")
+plot(dates, pet,  type = "l", col = "darkorange", lwd = 1.2,
+     ylab = "PET (mm/day)", xlab = "")
+
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+```
+
+---
+
+## 2. Parameter setup
+
+`pdm_params()` constructs and validates a `PdmParams` object. All Moore (2007)
+Table 1 parameters have defaults; we only need to set the ones that differ from
+defaults.
+
+```{r params}
+p <- pdm_params(
+  dist  = "pareto",   # Appendix A — most commonly used distribution
+  cmax  = 350,        # maximum soil storage capacity [mm]
+  b     = 0.4,        # Pareto shape exponent
+  St    = 20,         # soil tension storage threshold [mm]
+  kg    = 150,        # recharge time constant [days]
+  kb    = 200,        # baseflow time constant [days]
+  m     = 1,          # groundwater exponent (1 = linear reservoir)
+  k1    = 5,          # surface reservoir 1 time constant [days]
+  k2    = 8           # surface reservoir 2 time constant [days]
+)
+
+print(p)
+```
+
+---
+
+## 3. Running the model
+
+`pdm()` returns a `ReachHydroResult` — a `data.table` subclass with 16 columns
+covering all intermediate states and flow components.
+
+```{r run}
+res <- pdm(rain, pet, params = p)
+
+print(res)
+summary(res, warmup = 365)  # exclude first year from summary statistics
+```
+
+```{r plot-hydro, fig.cap = "Simulated flow separated into fast (Qf) and baseflow (Qb) components."}
+par(mar = c(3, 4, 1, 1))
+plot(dates, res$Q,  type = "l", col = "steelblue",  lwd = 1.2,
+     ylab = "Flow (mm/day)", xlab = "")
+lines(dates, res$Qf, col = "dodgerblue",  lwd = 0.8, lty = 2)
+lines(dates, res$Qb, col = "sienna",      lwd = 0.8, lty = 2)
+legend("topright",
+       legend = c("Q total", "Qf fast", "Qb baseflow"),
+       col    = c("steelblue", "dodgerblue", "sienna"),
+       lty    = c(1, 2, 2), lwd = 1.2, bty = "n", cex = 0.85)
+par(mar = c(5, 4, 4, 2) + 0.1)
+```
+
+```{r plot-stores, fig.cap = "Soil moisture (S) and groundwater store (Sg) over the simulation period."}
+Smax <- attr(res, "Smax")
+
+par(mfrow = c(2, 1), mar = c(2, 4, 1, 1))
+plot(dates, res$S,  type = "l", col = "darkgreen", lwd = 1,
+     ylim = c(0, Smax),
+     ylab = "Soil moisture S (mm)", xlab = "")
+abline(h = Smax, lty = 3, col = "grey50")
+text(dates[10], Smax * 0.97, sprintf("Smax = %.0f mm", Smax),
+     adj = 0, col = "grey50", cex = 0.8)
+
+plot(dates, res$Sg, type = "l", col = "peru",      lwd = 1,
+     ylab = "Groundwater Sg (mm)", xlab = "")
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) + 0.1)
+```
+
+---
+
+## 4. Goodness-of-fit against a reference run
+
+To demonstrate performance metrics we create a reference ("observed") flow series
+by running the model with slightly different parameters and adding a small
+noise term.
+
+```{r gof}
+p_ref  <- pdm_params(dist = "pareto", cmax = 320, b = 0.35, St = 15,
+                     kg = 130, kb = 180, m = 1, k1 = 5, k2 = 8)
+set.seed(7)
+obs_q  <- pdm(rain, pet, params = p_ref)$Q +
+          pmax(0, rnorm(n, 0, 0.005))
+
+# Exclude the first year as warm-up
+metrics <- gof_metrics(obs_q, res$Q, warmup = 365)
+print(round(metrics, 3))
+```
+
+The NSE and KGE are moderately high because the two parameter sets are
+close but not identical — realistic for an uncalibrated model.
+
+---
+
+## 5. Comparing capacity distributions
+
+`compare_distributions()` runs the PDM with all five supported capacity
+distributions and returns a summary table. We run it on the first year only
+to keep the example quick.
+
+```{r compare-dists}
+tbl <- compare_distributions(
+  rain[1:365], pet[1:365],
+  obs_q   = obs_q[1:365],
+  warmup  = 0L
+)
+print(tbl[, .(distribution, Smax_mm, mean_Q, BFI, NSE, KGE)])
+```
+
+---
+
+## 6. Calibration
+
+`calibrate_pdm()` uses Nelder-Mead optimisation to find the parameter set that
+maximises a goodness-of-fit metric against observed flow. We calibrate on the
+first two years and evaluate on the third.
+
+> **Note:** `maxit = 300` is used here for vignette build speed. Production
+> calibration runs should use the default `maxit = 3000`.
+
+```{r calibrate}
+n_cal <- 365 * 2
+
+cal <- calibrate_pdm(
+  rain    = rain[1:n_cal],
+  pet     = pet[1:n_cal],
+  obs_q   = obs_q[1:n_cal],
+  dist    = "pareto",
+  warmup  = 365L,
+  maxit   = 300L     # increase to 3000 for production
+)
+
+cat(sprintf("Calibration  NSE = %.3f  KGE = %.3f  PBIAS = %.1f%%\n",
+            cal$nse, cal$kge, cal$pbias))
+print(cal$params)
+```
+
+Evaluate on the held-out third year:
+
+```{r eval-holdout}
+idx_val <- seq(n_cal + 1L, n)
+res_cal <- pdm(rain[idx_val], pet[idx_val], params = cal$params)
+val_m   <- gof_metrics(obs_q[idx_val], res_cal$Q)
+cat(sprintf("Validation   NSE = %.3f  KGE = %.3f  PBIAS = %.1f%%\n",
+            val_m["nse"], val_m["kge"], val_m["pbias"]))
+```
+
+---
+
+## 7. State updating for operational forecasting
+
+In operational use the PDM is initialised from recent observations rather than
+from a cold start, removing the need for a multi-year burn-in. `update_pdm_states()`
+runs the model over a recent assimilation window and adjusts the routing stores
+to match the observed flow at the forecast origin.
+
+```{r state-update}
+# Assimilation window: last 30 days before the forecast origin
+win       <- 30L
+win_idx   <- seq(n - win, n - 1L)   # days 1066-1095 (end of year 3)
+fcast_idx <- seq(n, min(n + 13L, n))  # use last day as "origin" for demo
+
+upd <- update_pdm_states(
+  rain   = rain[win_idx],
+  pet    = pet[win_idx],
+  obs_q  = obs_q[win_idx],
+  params = cal$params,
+  method = "inversion"
+)
+
+print(upd)
+```
+
+Run a 14-day forecast from the updated states:
+
+```{r forecast, fig.cap = "14-day forecast (blue) against reference flow (orange) starting from updated states."}
+set.seed(55)
+n_fcast    <- 14L
+rain_fcast <- pmax(0, rnorm(n_fcast, mean = 1.5, sd = 2))
+pet_fcast  <- pmax(0, rep(1.8, n_fcast) + rnorm(n_fcast, 0, 0.15))
+obs_fcast  <- pdm(rain_fcast, pet_fcast, params = p_ref)$Q
+
+fcast <- pdm(rain_fcast, pet_fcast, params = cal$params,
+             S0   = upd$S0,
+             Sg0  = upd$Sg0,
+             Ss10 = upd$Ss10,
+             Ss20 = upd$Ss20)
+
+fcast_dates <- seq.Date(tail(dates, 1) + 1L, by = "day", length.out = n_fcast)
+
+par(mar = c(3, 4, 2, 1))
+plot(fcast_dates, obs_fcast, type = "l", col = "darkorange", lwd = 1.5,
+     ylim = range(c(obs_fcast, fcast$Q)) * c(0.8, 1.2),
+     ylab = "Flow (mm/day)", xlab = "", main = "14-day forecast")
+lines(fcast_dates, fcast$Q, col = "steelblue", lwd = 1.5, lty = 2)
+legend("topright",
+       legend = c("Reference", "Forecast"),
+       col    = c("darkorange", "steelblue"),
+       lty    = c(1, 2), lwd = 1.5, bty = "n", cex = 0.9)
+par(mar = c(5, 4, 4, 2) + 0.1)
+```
+
+---
+
+## References
+
+Moore, R.J. (2007). The PDM rainfall-runoff model.
+*Hydrology and Earth System Sciences*, **11**, 483–499.
+<https://doi.org/10.5194/hess-11-483-2007>
