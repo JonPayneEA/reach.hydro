@@ -167,32 +167,52 @@ verification during model setup.
 
 ## 3. Flow Statistics and Baseflow
 
-### 3.1 Baseflow separation
+### 3.1 Baseflow separation *(implemented)*
 
-Implement two standard digital filter algorithms for separating baseflow from
-an observed flow series. Essential for PDM parameter initialisation and for
-diagnosing model performance against low-flow conditions.
+`baseflow_separate()` separates an observed flow series into baseflow and
+quickflow components using a recursive digital filter. Works at any timestep
+(daily, hourly, 15-minute).
 
-- **Lyne-Hollick** (one-parameter recursive filter)
-- **Boughton-Eckhardt** (two-parameter recursive filter)
+- **Lyne-Hollick** (one-parameter recursive filter, default `alpha = 0.925`)
+- **Boughton-Eckhardt** (two-parameter: `k = 0.975`, `C = 0.1`)
+- Multiple passes (forward/backward) to remove phase shift (default 3 passes)
 
 ```r
 bf <- baseflow_separate(flow, method = "lyne_hollick", alpha = 0.925)
 bf$baseflow   # numeric vector
+bf$quickflow  # numeric vector
 bf$bfi        # Baseflow Index for the period
 ```
 
-Provides an observed-data alternative to `baseflow_index()` (which currently
-uses `bfihost`).
+Provides an observed-data alternative to `baseflow_index()` (which requires
+pre-separated Qb from a model run).
 
-### 3.2 Flow percentile and deficit analysis
+### 3.2 Flow percentile and deficit analysis *(implemented)*
 
-Extend `flow_statistics.R` with tools useful for evaluating model skill across
-the full flow regime:
+`flow_statistics.R` now includes:
 
-- `flow_deficit()` - volume and duration of low-flow spells below a threshold
-- `flow_recession()` - automatic recession curve fitting (master recession curve)
-- `q_n_day()` - n-day minimum/maximum flow (e.g. Q7 for low-flow indices)
+- `flow_deficit()` - volume and duration of low-flow spells below a threshold;
+  works with daily or sub-daily data; returns duration in real time units when
+  dates are supplied
+- `flow_recession()` - automatic recession curve fitting (`Q = Q0 * exp(-t/k)`)
+  across identified recession limbs; returns median k and per-event statistics
+- `q_n_day()` - rolling n-day minimum/maximum flow (Q7 for low-flow indices);
+  returns scalar or annual values by water year when dates supplied
+- `monthly_flow_stats()` - mean, median, Q10, Q90, max by calendar month;
+  works at any timestep
+
+### 3.3 Rainfall time series analysis *(implemented)*
+
+`R/rainfall_statistics.R` provides standalone rainfall analysis tools:
+
+- `rainfall_events()` - storm event extraction; identifies discrete events
+  separated by dry gaps; characterises each event by duration, total depth,
+  peak and mean intensity; works at any timestep
+- `api()` - antecedent precipitation index (exponential decay memory):
+  `API[t] = k * API[t-1] + P[t]`; used for antecedent wetness estimation
+- `idf_empirical()` - empirical intensity-duration-frequency table; extracts
+  rolling-window maximum depths for specified durations; returns annual maxima
+  by water year when dates supplied
 
 ---
 

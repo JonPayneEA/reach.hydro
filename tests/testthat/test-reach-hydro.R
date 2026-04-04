@@ -274,6 +274,214 @@ test_that("peaks_over_threshold returns empty dt when no exceedances", {
 })
 
 # =============================================================================
+# baseflow_separate
+# =============================================================================
+
+test_that("baseflow_separate (lyne_hollick): bfi is in (0, 1)", {
+  Q  <- pmax(0.1, .rain[1:365])
+  bf <- baseflow_separate(Q, method = "lyne_hollick")
+  expect_gt(bf$bfi, 0)
+  expect_lt(bf$bfi, 1)
+})
+
+test_that("baseflow_separate (boughton_eckhardt): bfi is in (0, 1)", {
+  Q  <- pmax(0.1, .rain[1:365])
+  bf <- baseflow_separate(Q, method = "boughton_eckhardt")
+  expect_gt(bf$bfi, 0)
+  expect_lt(bf$bfi, 1)
+})
+
+test_that("baseflow_separate: baseflow + quickflow == flow", {
+  Q  <- pmax(0.1, .rain[1:200])
+  bf <- baseflow_separate(Q)
+  expect_equal(bf$baseflow + bf$quickflow, Q, tolerance = 1e-10)
+})
+
+test_that("baseflow_separate: baseflow <= flow at every timestep", {
+  Q  <- pmax(0.1, .rain[1:200])
+  bf <- baseflow_separate(Q)
+  expect_true(all(bf$baseflow <= Q + 1e-10))
+})
+
+test_that("baseflow_separate: quickflow is non-negative", {
+  Q  <- pmax(0.1, .rain[1:200])
+  bf <- baseflow_separate(Q)
+  expect_true(all(bf$quickflow >= -1e-10))
+})
+
+# =============================================================================
+# q_n_day
+# =============================================================================
+
+test_that("q_n_day (min) is <= overall minimum", {
+  Q <- pmax(0, .rain[1:200])
+  expect_lte(q_n_day(Q, n = 7L, type = "min"), min(Q) + 1e-10)
+})
+
+test_that("q_n_day (max) is >= overall maximum", {
+  Q <- pmax(0, .rain[1:200])
+  expect_gte(q_n_day(Q, n = 7L, type = "max"), max(Q) - 1e-10)
+})
+
+test_that("q_n_day with dates returns one row per water year", {
+  dates <- seq.Date(as.Date("2020-01-01"), by = "day", length.out = 730)
+  Q     <- pmax(0, .rain[1:730])
+  res   <- q_n_day(Q, n = 7L, dates = dates)
+  expect_true(data.table::is.data.table(res))
+  expect_equal(nrow(res), length(unique(res$water_year)))
+})
+
+# =============================================================================
+# monthly_flow_stats
+# =============================================================================
+
+test_that("monthly_flow_stats returns 12 rows", {
+  dates <- seq.Date(as.Date("2020-01-01"), by = "day", length.out = 730)
+  Q     <- pmax(0, .rain[1:730])
+  res   <- monthly_flow_stats(Q, dates)
+  expect_equal(nrow(res), 12L)
+  expect_true(data.table::is.data.table(res))
+})
+
+test_that("monthly_flow_stats: Q10 <= median <= Q90 for every month", {
+  dates <- seq.Date(as.Date("2020-01-01"), by = "day", length.out = 730)
+  Q     <- pmax(0.1, .rain[1:730])
+  res   <- monthly_flow_stats(Q, dates)
+  expect_true(all(res$Q10 <= res$median + 1e-9))
+  expect_true(all(res$median <= res$Q90 + 1e-9))
+})
+
+# =============================================================================
+# flow_deficit
+# =============================================================================
+
+test_that("flow_deficit returns zero rows when no values below threshold", {
+  Q   <- rep(5, 50)
+  res <- flow_deficit(Q, threshold = 1)
+  expect_equal(nrow(res), 0L)
+})
+
+test_that("flow_deficit identifies at least one spell", {
+  Q   <- c(5, 5, 1, 0.5, 0.8, 5, 5, 0.2, 0.3, 5)
+  res <- flow_deficit(Q, threshold = 3)
+  expect_gte(nrow(res), 1L)
+})
+
+test_that("flow_deficit: deficit_volume > 0 for all spells", {
+  Q   <- c(5, 5, 1, 0.5, 0.8, 5, 5, 0.2, 0.3, 5)
+  res <- flow_deficit(Q, threshold = 3)
+  expect_true(all(res$deficit_volume > 0))
+})
+
+test_that("flow_deficit: start_idx <= end_idx for all spells", {
+  Q   <- c(5, 5, 1, 0.5, 0.8, 5, 5, 0.2, 0.3, 5)
+  res <- flow_deficit(Q, threshold = 3)
+  expect_true(all(res$start_idx <= res$end_idx))
+})
+
+test_that("flow_deficit adds date columns when dates supplied", {
+  Q     <- c(5, 5, 1, 0.5, 5, 5)
+  dates <- seq.Date(as.Date("2020-01-01"), by = "day", length.out = 6)
+  res   <- flow_deficit(Q, threshold = 3, dates = dates)
+  expect_true("start_date" %in% names(res))
+  expect_true("end_date"   %in% names(res))
+})
+
+# =============================================================================
+# flow_recession
+# =============================================================================
+
+test_that("flow_recession returns positive k for a clean recession", {
+  Q   <- 20 * exp(-seq(0, 11) / 8)   # perfect exponential decay, k = 8
+  res <- flow_recession(Q, min_duration = 4L)
+  expect_gte(res$n_recessions, 1L)
+  expect_gt(res$k, 0)
+})
+
+test_that("flow_recession: k is NA when no recessions found", {
+  Q   <- rep(5, 20)
+  res <- flow_recession(Q, min_duration = 5L)
+  expect_equal(res$n_recessions, 0L)
+  expect_true(is.na(res$k))
+})
+
+test_that("flow_recession: recessions data.table has correct columns", {
+  Q   <- c(20, 15, 11, 8, 6, 5, 4, 3.5, 3, 2.8)
+  res <- flow_recession(Q, min_duration = 3L)
+  expect_true(all(c("start_idx", "end_idx", "Q0", "k_fit") %in%
+                    names(res$recessions)))
+})
+
+# =============================================================================
+# Rainfall statistics
+# =============================================================================
+
+test_that("rainfall_events returns zero rows when no rain", {
+  res <- rainfall_events(rep(0, 50))
+  expect_equal(nrow(res), 0L)
+})
+
+test_that("rainfall_events: events are non-overlapping", {
+  rain <- c(0, 0, 3, 5, 2, 0, 0, 0, 0, 0, 0, 4, 3, 0, 0)
+  res  <- rainfall_events(rain, min_dry = 4L)
+  if (nrow(res) >= 2L) {
+    expect_true(all(res$start_idx[-1L] > res$end_idx[-nrow(res)]))
+  }
+  expect_gte(nrow(res), 1L)
+})
+
+test_that("rainfall_events: total_depth matches sum of rain in event", {
+  rain <- c(0, 0, 3, 5, 2, 0, 0, 0, 0, 0, 0, 4, 3, 0, 0)
+  res  <- rainfall_events(rain, min_dry = 5L)
+  for (j in seq_len(nrow(res))) {
+    expect_equal(
+      sum(rain[res$start_idx[j]:res$end_idx[j]]),
+      res$total_depth[j],
+      tolerance = 1e-10
+    )
+  }
+})
+
+test_that("api: returns same-length vector, non-negative", {
+  rain <- c(0, 0, 10, 5, 0, 0, 0, 3, 0, 0)
+  out  <- api(rain, k = 0.9)
+  expect_length(out, length(rain))
+  expect_true(all(out >= 0))
+})
+
+test_that("api: decays to near-zero in long dry period", {
+  rain <- c(10, rep(0, 50))
+  out  <- api(rain, k = 0.9)
+  expect_lt(tail(out, 1L), 0.1)
+})
+
+test_that("api: equals rain when k = 0 (no memory)", {
+  rain <- c(2, 5, 0, 3, 1)
+  expect_equal(api(rain, k = 0), rain, tolerance = 1e-10)
+})
+
+test_that("idf_empirical: returns one row per duration when no dates", {
+  rain <- pmax(0, .rain[1:365])
+  res  <- idf_empirical(rain, durations = c(1L, 3L, 7L))
+  expect_equal(nrow(res), 3L)
+  expect_true(data.table::is.data.table(res))
+})
+
+test_that("idf_empirical: longer durations have >= depth than shorter", {
+  rain <- pmax(0, .rain[1:365])
+  res  <- idf_empirical(rain, durations = c(1L, 7L, 30L))
+  expect_gte(res$amax_depth[2L], res$amax_depth[1L])
+  expect_gte(res$amax_depth[3L], res$amax_depth[2L])
+})
+
+test_that("idf_empirical with dates: returns water_year column", {
+  rain  <- pmax(0, .rain[1:730])
+  dates <- seq.Date(as.Date("2020-01-01"), by = "day", length.out = 730)
+  res   <- idf_empirical(rain, durations = c(1L, 3L), dates = dates)
+  expect_true("water_year" %in% names(res))
+})
+
+# =============================================================================
 # Unit conversions
 # =============================================================================
 
