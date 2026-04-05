@@ -482,6 +482,115 @@ test_that("idf_empirical with dates: returns water_year column", {
 })
 
 # =============================================================================
+# HydroData dispatch -- flow and rainfall analysis functions
+# =============================================================================
+
+# Minimal mock builder (mirrors test-reach-io-compat.R approach)
+.make_mock_flow_hd <- function(vals, start = "2020-10-01", freq = "day") {
+  n     <- length(vals)
+  dates <- seq.Date(as.Date(start), by = freq, length.out = n)
+  dts   <- as.POSIXct(dates)
+  structure(
+    list(
+      readings = data.table::data.table(
+        dateTime = dts, date = dates,
+        value    = vals, measure_notation = "m3s",
+        quality  = rep("Good", n)
+      ),
+      parameter = "flow", period_name = "Mock", n_measures = n, n_rows = n,
+      from_date = as.character(start),
+      to_date   = as.character(max(dates)),
+      downloaded_at = Sys.time()
+    ),
+    class = c("Flow_Daily", "HydroData")
+  )
+}
+
+.make_mock_rain_hd <- function(vals, start = "2020-10-01", freq = "day") {
+  n     <- length(vals)
+  dates <- seq.Date(as.Date(start), by = freq, length.out = n)
+  dts   <- as.POSIXct(dates)
+  structure(
+    list(
+      readings = data.table::data.table(
+        dateTime = dts, date = dates,
+        value    = vals, measure_notation = "mm",
+        quality  = rep("Good", n)
+      ),
+      parameter = "rainfall", period_name = "Mock", n_measures = n, n_rows = n,
+      from_date = as.character(start),
+      to_date   = as.character(max(dates)),
+      downloaded_at = Sys.time()
+    ),
+    class = c("Rainfall_Daily", "HydroData")
+  )
+}
+
+test_that("baseflow_separate accepts Flow_Daily HydroData", {
+  hd <- .make_mock_flow_hd(pmax(0.1, .rain[1:100]))
+  bf <- baseflow_separate(hd)
+  expect_named(bf, c("baseflow", "quickflow", "bfi"))
+  expect_length(bf$baseflow, 100L)
+})
+
+test_that("q_n_day accepts Flow_Daily HydroData and returns annual table", {
+  hd  <- .make_mock_flow_hd(pmax(0, .rain[1:730]))
+  res <- q_n_day(hd, n = 7L)
+  expect_true(data.table::is.data.table(res))
+  expect_true("water_year" %in% names(res))
+})
+
+test_that("monthly_flow_stats accepts Flow_Daily HydroData", {
+  hd  <- .make_mock_flow_hd(pmax(0, .rain[1:730]))
+  res <- monthly_flow_stats(hd)
+  expect_equal(nrow(res), 12L)
+})
+
+test_that("flow_deficit accepts Flow_Daily HydroData and adds date columns", {
+  hd  <- .make_mock_flow_hd(c(5, 5, 1, 0.5, 5, 5, 5, 1, 0.2, 5))
+  res <- flow_deficit(hd, threshold = 3)
+  expect_gte(nrow(res), 1L)
+  expect_true("start_date" %in% names(res))
+})
+
+test_that("flow_recession accepts Flow_Daily HydroData", {
+  Q  <- 20 * exp(-seq(0, 9) / 5)
+  hd <- .make_mock_flow_hd(Q)
+  res <- flow_recession(hd, min_duration = 4L)
+  expect_true("start_date" %in% names(res$recessions))
+})
+
+test_that("rainfall_events accepts Rainfall_Daily HydroData and adds date columns", {
+  hd  <- .make_mock_rain_hd(c(0, 0, 3, 5, 0, 0, 0, 0, 0, 0, 2, 4, 0, 0))
+  res <- rainfall_events(hd, min_dry = 4L)
+  expect_gte(nrow(res), 1L)
+  expect_true("start_date" %in% names(res))
+})
+
+test_that("api accepts Rainfall_Daily HydroData", {
+  hd  <- .make_mock_rain_hd(c(0, 0, 10, 5, 0, 0, 0, 3, 0, 0))
+  out <- api(hd, k = 0.9)
+  expect_length(out, 10L)
+  expect_true(all(out >= 0))
+})
+
+test_that("idf_empirical accepts Rainfall_Daily HydroData and returns water_year", {
+  hd  <- .make_mock_rain_hd(pmax(0, .rain[1:730]))
+  res <- idf_empirical(hd, durations = c(1L, 3L))
+  expect_true("water_year" %in% names(res))
+})
+
+test_that("flow_deficit errors when wrong HydroData type passed", {
+  rain_hd <- .make_mock_rain_hd(rep(2, 20))
+  expect_error(flow_deficit(rain_hd, threshold = 1), "Flow_Daily or Flow_15min")
+})
+
+test_that("rainfall_events errors when wrong HydroData type passed", {
+  flow_hd <- .make_mock_flow_hd(pmax(0.1, .rain[1:20]))
+  expect_error(rainfall_events(flow_hd), "Rainfall_Daily or Rainfall_15min")
+})
+
+# =============================================================================
 # Unit conversions
 # =============================================================================
 

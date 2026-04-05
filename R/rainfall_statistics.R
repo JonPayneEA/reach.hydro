@@ -25,10 +25,13 @@
 #' `Date` vector, and in hours when `dates` is a `POSIXct` vector.
 #'
 #' @param rain      Numeric vector of rainfall depths per timestep. Must be
-#'                  non-negative.
+#'                  non-negative. Can also be a `reach.io` `Rainfall_Daily` or
+#'                  `Rainfall_15min` HydroData object, in which case values and
+#'                  datetimes are extracted automatically and `dates` is ignored.
 #' @param dates     Optional `Date` or `POSIXct` vector the same length as
 #'                  `rain`.  If supplied, `start_date` and `end_date` columns
 #'                  are added to the output and duration is in real time units.
+#'                  Ignored when `rain` is a HydroData object.
 #' @param min_dry   Minimum number of consecutive dry timesteps (i.e. rain
 #'                  below `dry_thresh`) required to separate two events.
 #'                  Default `6L`.
@@ -57,6 +60,11 @@
 #' @export
 rainfall_events <- function(rain, dates = NULL, min_dry = 6L,
                             min_depth = 0, dry_thresh = 0.0) {
+  if (.is_hydrodata(rain)) {
+    .assert_rainfall(rain, "rain")
+    dates <- hydrodata_datetimes(rain)
+    rain  <- hydrodata_values(rain)
+  }
   checkmate::assert_numeric(rain, lower = 0, any.missing = FALSE, min.len = 1L)
   checkmate::assert_int(min_dry, lower = 1L)
   checkmate::assert_number(min_depth, lower = 0)
@@ -170,7 +178,9 @@ rainfall_events <- function(rain, dates = NULL, min_dry = 6L,
 #' appropriate to maintain the same effective memory window.
 #'
 #' @param rain  Numeric vector of rainfall depths per timestep. Must be
-#'              non-negative.
+#'              non-negative. Can also be a `reach.io` `Rainfall_Daily` or
+#'              `Rainfall_15min` HydroData object, in which case values are
+#'              extracted automatically.
 #' @param k     Decay factor per timestep, in (0, 1). Default `0.9`.
 #'
 #' @return Numeric vector of the same length as `rain`, giving the API at each
@@ -182,6 +192,10 @@ rainfall_events <- function(rain, dates = NULL, min_dry = 6L,
 #'
 #' @export
 api <- function(rain, k = 0.9) {
+  if (.is_hydrodata(rain)) {
+    .assert_rainfall(rain, "rain")
+    rain <- hydrodata_values(rain)
+  }
   checkmate::assert_numeric(rain, lower = 0, any.missing = FALSE, min.len = 1L)
   checkmate::assert_number(k, lower = 0, upper = 1, finite = TRUE)
 
@@ -207,12 +221,17 @@ api <- function(rain, k = 0.9) {
 #' for 1-, 3-, and 6-day maxima.
 #'
 #' @param rain              Numeric vector of rainfall per timestep. Non-negative.
+#'                          Can also be a `reach.io` `Rainfall_Daily` or
+#'                          `Rainfall_15min` HydroData object, in which case
+#'                          values and datetimes are extracted automatically and
+#'                          `dates` is ignored.
 #' @param durations         Integer vector of window widths (in timesteps) for
 #'                          which to compute maxima. Default
 #'                          `c(1L, 3L, 6L, 12L, 24L, 48L)`.
 #' @param dates             Optional `Date` or `POSIXct` vector the same length
 #'                          as `rain`.  If supplied, annual maxima are returned
-#'                          grouped by water year.
+#'                          grouped by water year. Ignored when `rain` is a
+#'                          HydroData object.
 #' @param water_year_start  Integer month that starts the water year. Default
 #'                          `10L` (October, UK convention).
 #'
@@ -231,6 +250,11 @@ idf_empirical <- function(rain,
                           durations = c(1L, 3L, 6L, 12L, 24L, 48L),
                           dates = NULL,
                           water_year_start = 10L) {
+  if (.is_hydrodata(rain)) {
+    .assert_rainfall(rain, "rain")
+    dates <- hydrodata_datetimes(rain)
+    rain  <- hydrodata_values(rain)
+  }
   checkmate::assert_numeric(rain, lower = 0, any.missing = FALSE, min.len = 1L)
   checkmate::assert_integerish(durations, lower = 1L, min.len = 1L)
   durations <- as.integer(durations)

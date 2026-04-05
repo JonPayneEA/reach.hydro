@@ -207,6 +207,9 @@ peaks_over_threshold <- function(flow, dates, threshold, min_sep = 3L) {
 #' quickflow per step; recalibrate accordingly for sub-daily use.
 #'
 #' @param flow   Numeric vector of total flow values. Must be non-negative.
+#'               Can also be a `reach.io` `Flow_Daily` or `Flow_15min` HydroData
+#'               object, in which case values and datetimes are extracted
+#'               automatically.
 #' @param method One of `"lyne_hollick"` (default) or `"boughton_eckhardt"`.
 #' @param alpha  Lyne-Hollick filter parameter in (0, 1). Default `0.925`.
 #' @param k      Boughton-Eckhardt recession constant in (0, 1). Default `0.975`.
@@ -232,6 +235,10 @@ baseflow_separate <- function(flow,
                               alpha = 0.925, k = 0.975, C = 0.1,
                               passes = 3L) {
   method <- match.arg(method)
+  if (.is_hydrodata(flow)) {
+    .assert_flow(flow, "flow")
+    flow <- hydrodata_values(flow)
+  }
   checkmate::assert_numeric(flow, lower = 0, any.missing = FALSE, min.len = 2L)
   checkmate::assert_int(passes, lower = 1L)
 
@@ -296,11 +303,15 @@ baseflow_separate <- function(flow,
 #' pass `n` in the appropriate units (e.g. `n = 7 * 96` for 7-day Q using
 #' 15-minute data).
 #'
-#' @param flow              Numeric vector of flow values.
+#' @param flow              Numeric vector of flow values. Can also be a
+#'                          `reach.io` `Flow_Daily` or `Flow_15min` HydroData
+#'                          object, in which case values and datetimes are
+#'                          extracted automatically and `dates` is ignored.
 #' @param n                 Integer. Rolling window width in timesteps. Default `7L`.
 #' @param type              `"min"` (default) or `"max"`.
 #' @param dates             Optional `Date` or `POSIXct` vector the same length as
 #'                          `flow`. If supplied, annual values are returned.
+#'                          Ignored when `flow` is a HydroData object.
 #' @param water_year_start  Integer month that starts the water year. Default `10L`.
 #'
 #' @return If `dates` is `NULL`: a scalar (overall rolling min/max).
@@ -315,6 +326,11 @@ baseflow_separate <- function(flow,
 q_n_day <- function(flow, n = 7L, type = c("min", "max"),
                     dates = NULL, water_year_start = 10L) {
   type <- match.arg(type)
+  if (.is_hydrodata(flow)) {
+    .assert_flow(flow, "flow")
+    dates <- hydrodata_datetimes(flow)
+    flow  <- hydrodata_values(flow)
+  }
   checkmate::assert_numeric(flow, min.len = 1L)
   checkmate::assert_int(n, lower = 1L)
 
@@ -359,8 +375,12 @@ q_n_day <- function(flow, n = 7L, type = c("min", "max"),
 #' Works with any timestep (daily, hourly, 15-minute) provided a `dates` vector
 #' is supplied.
 #'
-#' @param flow   Numeric vector of flow values.
-#' @param dates  `Date` or `POSIXct` vector, same length as `flow`.
+#' @param flow   Numeric vector of flow values. Can also be a `reach.io`
+#'               `Flow_Daily` or `Flow_15min` HydroData object, in which case
+#'               values and datetimes are extracted automatically and `dates`
+#'               is ignored.
+#' @param dates  `Date` or `POSIXct` vector, same length as `flow`. Ignored
+#'               when `flow` is a HydroData object.
 #'
 #' @return A 12-row `data.table` with columns:
 #'   `month` (1-12), `mean`, `median`, `Q10`, `Q90`, `max`.
@@ -373,8 +393,16 @@ q_n_day <- function(flow, n = 7L, type = c("min", "max"),
 #' monthly_flow_stats(flow, dates)
 #'
 #' @export
-monthly_flow_stats <- function(flow, dates) {
+monthly_flow_stats <- function(flow, dates = NULL) {
+  if (.is_hydrodata(flow)) {
+    .assert_flow(flow, "flow")
+    dates <- hydrodata_datetimes(flow)
+    flow  <- hydrodata_values(flow)
+  }
   checkmate::assert_numeric(flow)
+  if (is.null(dates))
+    stop("monthly_flow_stats: `dates` is required when `flow` is a numeric vector.",
+         call. = FALSE)
   checkmate::assert(
     checkmate::check_date(dates),
     checkmate::check_posixct(dates)
@@ -411,12 +439,16 @@ monthly_flow_stats <- function(flow, dates) {
 #' Duration is in timesteps if `dates` is `NULL`, or in days when `dates` is a
 #' `Date` vector, or in hours when `dates` is `POSIXct`.
 #'
-#' @param flow       Numeric vector of flow values.
+#' @param flow       Numeric vector of flow values. Can also be a `reach.io`
+#'                   `Flow_Daily` or `Flow_15min` HydroData object, in which
+#'                   case values and datetimes are extracted automatically and
+#'                   `dates` is ignored.
 #' @param threshold  Flow threshold. Spells where `flow < threshold` are
 #'                   identified.
 #' @param dates      Optional `Date` or `POSIXct` vector the same length as
 #'                   `flow`. If supplied, `start_date` and `end_date` columns
-#'                   are added and duration is in real time units.
+#'                   are added and duration is in real time units. Ignored when
+#'                   `flow` is a HydroData object.
 #'
 #' @return A `data.table` with one row per deficit spell and columns:
 #'   `start_idx`, `end_idx`, `duration`, `deficit_volume`, `max_deficit`.
@@ -429,6 +461,11 @@ monthly_flow_stats <- function(flow, dates) {
 #'
 #' @export
 flow_deficit <- function(flow, threshold, dates = NULL) {
+  if (.is_hydrodata(flow)) {
+    .assert_flow(flow, "flow")
+    dates <- hydrodata_datetimes(flow)
+    flow  <- hydrodata_values(flow)
+  }
   checkmate::assert_numeric(flow, min.len = 1L)
   checkmate::assert_number(threshold)
 
@@ -528,10 +565,14 @@ flow_deficit <- function(flow, threshold, dates = NULL) {
 #' within the tolerance set by `min_ratio`). The fitted `k` is in the same
 #' time units as the timestep.
 #'
-#' @param flow          Numeric vector of flow values. Must be positive.
-#' @param dates         Optional `Date` or `POSIXct` vector, same length as `flow`.
-#'                      If supplied, `start_date` and `end_date` columns are
-#'                      added to the per-event table.
+#' @param flow          Numeric vector of flow values. Must be positive. Can
+#'                      also be a `reach.io` `Flow_Daily` or `Flow_15min`
+#'                      HydroData object, in which case values and datetimes
+#'                      are extracted automatically and `dates` is ignored.
+#' @param dates         Optional `Date` or `POSIXct` vector, same length as
+#'                      `flow`. If supplied, `start_date` and `end_date` columns
+#'                      are added to the per-event table. Ignored when `flow` is
+#'                      a HydroData object.
 #' @param min_duration  Minimum number of consecutive timesteps to qualify as a
 #'                      recession. Default `5L`.
 #' @param min_ratio     Maximum allowed `Q[t] / Q[t-1]` ratio for a timestep to
@@ -553,6 +594,11 @@ flow_deficit <- function(flow, threshold, dates = NULL) {
 #' @export
 flow_recession <- function(flow, dates = NULL,
                            min_duration = 5L, min_ratio = 0.95) {
+  if (.is_hydrodata(flow)) {
+    .assert_flow(flow, "flow")
+    dates <- hydrodata_datetimes(flow)
+    flow  <- hydrodata_values(flow)
+  }
   checkmate::assert_numeric(flow, lower = 0, min.len = 2L)
   checkmate::assert_int(min_duration, lower = 2L)
   checkmate::assert_number(min_ratio, lower = 0, upper = 1)
