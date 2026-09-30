@@ -83,7 +83,7 @@
 #'                  Default 0.0 = rural.
 #' @param season    `"summer"` (default) or `"winter"`. Affects Cini.
 #'
-#' @return A list of class `"ReFHParams"` containing:
+#' @return A [FlodeReFHParams] S7 object with properties:
 #'   \describe{
 #'     \item{Cmax}{Maximum soil moisture capacity \[mm\].}
 #'     \item{Cini}{Initial soil moisture content \[mm\] (seasonal).}
@@ -158,23 +158,61 @@ ReFH_params <- function(area,
   # Kb: baseflow recession (Table 7) — empirical
   Kb <- 0.5 * (1 + bfi_adj)
 
-  structure(
-    list(Cmax = Cmax, Cini = Cini, alpha = alpha,
-         Tp = Tp, BL = BL, BR = BR, Kb = Kb,
-         area = area, bfihost = bfihost, saar = saar,
-         farl = farl, urbext = urbext, season = season),
-    class = "ReFHParams"
+  FlodeReFHParams(
+    Cmax = Cmax, Cini = Cini, alpha = alpha,
+    Tp = Tp, BL = BL, BR = BR, Kb = Kb,
+    area = area, bfihost = bfihost, saar = saar,
+    farl = farl, urbext = urbext, season = season
   )
 }
 
+#' ReFH parameter set
+#'
+#' An S7 class holding a fitted or derived set of ReFH model parameters, as
+#' returned by [ReFH_params()].
+#'
+#' @param Cmax Maximum soil moisture capacity \[mm\].
+#' @param Cini Initial soil moisture content \[mm\] (seasonal).
+#' @param alpha BRC \u2014 proportion of runoff going to fast store.
+#' @param Tp Time-to-peak of unit hydrograph \[hours\].
+#' @param BL Baseflow lag \[hours\].
+#' @param BR Baseflow recharge parameter \[\u2014\].
+#' @param Kb Baseflow recession constant \[\u2014\].
+#' @param area Catchment area \[km\u00b2\].
+#' @param bfihost Baseflow index from HOST soils \[0-1\].
+#' @param saar Standard average annual rainfall \[mm\].
+#' @param farl Index of flood attenuation by reservoirs and lakes \[0-1\].
+#' @param urbext Fraction of catchment urbanised (FEH URBEXT2000).
+#' @param season `"summer"` or `"winter"`.
+#'
 #' @export
-print.ReFHParams <- function(x, ...) {
-  cat(sprintf("<ReFHParams> area=%.1f km\u00b2 | BFIHOST=%.3f | SAAR=%d mm | %s\n",
-              x$area, x$bfihost, round(x$saar), x$season))
+FlodeReFHParams <- S7::new_class(
+  "FlodeReFHParams",
+  properties = list(
+    Cmax    = S7::class_numeric,
+    Cini    = S7::class_numeric,
+    alpha   = S7::class_numeric,
+    Tp      = S7::class_numeric,
+    BL      = S7::class_numeric,
+    BR      = S7::class_numeric,
+    Kb      = S7::class_numeric,
+    area    = S7::class_numeric,
+    bfihost = S7::class_numeric,
+    saar    = S7::class_numeric,
+    farl    = S7::class_numeric,
+    urbext  = S7::class_numeric,
+    season  = S7::class_character
+  )
+)
+
+#' @keywords internal
+.print_FlodeReFHParams <- function(x, ...) {
+  cat(sprintf("<FlodeReFHParams> area=%.1f km\u00b2 | BFIHOST=%.3f | SAAR=%d mm | %s\n",
+              x@area, x@bfihost, round(x@saar), x@season))
   cat(sprintf("  Cmax=%.1f mm | Cini=%.1f mm | alpha=%.3f\n",
-              x$Cmax, x$Cini, x$alpha))
+              x@Cmax, x@Cini, x@alpha))
   cat(sprintf("  Tp=%.2f hr | BL=%.2f hr | BR=%.3f | Kb=%.3f\n",
-              x$Tp, x$BL, x$BR, x$Kb))
+              x@Tp, x@BL, x@BR, x@Kb))
   invisible(x)
 }
 
@@ -192,8 +230,8 @@ print.ReFHParams <- function(x, ...) {
 #' @param storm    A `data.table` from [feh_design_storm()] with columns
 #'                 `time_min` and `rainfall_mm`. Or any `data.table` with
 #'                 those columns and a consistent timestep.
-#' @param params   A `ReFHParams` object from [ReFH_params()], or a named
-#'                 list with the same fields.
+#' @param params   A [FlodeReFHParams] object from [ReFH_params()], or a
+#'                 named list with the same fields.
 #' @param baseflow_0 Initial baseflow \[m³/s\] (scaled by area). Default 0.
 #'
 #' @return A `data.table` with columns:
@@ -213,8 +251,8 @@ print.ReFHParams <- function(x, ...) {
 #' @export
 ReFH_run <- function(storm, params, baseflow_0 = 0) {
 
-  if (!inherits(params, "ReFHParams"))
-    params <- structure(params, class = "ReFHParams")
+  if (!S7::S7_inherits(params, FlodeReFHParams))
+    params <- do.call(FlodeReFHParams, params)
 
   if (!data.table::is.data.table(storm))
     storm <- data.table::as.data.table(storm)
@@ -236,12 +274,12 @@ ReFH_run <- function(storm, params, baseflow_0 = 0) {
 
   # ---- Routing kernel: triangular UH → two cascaded linear reservoirs ------
   # Tp in timesteps
-  Tp_steps <- max(1L, round(params$Tp / dt_hr))
+  Tp_steps <- max(1L, round(params@Tp / dt_hr))
   uh       <- .ReFH_uh(Tp_steps, n)
 
   # ---- Loss model state -----------------------------------------------------
-  C    <- params$Cini  # current soil moisture [mm]
-  Cmax <- params$Cmax
+  C    <- params@Cini  # current soil moisture [mm]
+  Cmax <- params@Cmax
 
   net_rain <- numeric(n)
 
@@ -271,9 +309,9 @@ ReFH_run <- function(storm, params, baseflow_0 = 0) {
 
   # ---- Baseflow: linear recession with recharge from net rain ---------------
   Qb    <- numeric(n)
-  Kb    <- params$Kb
-  BR    <- params$BR
-  bl_steps <- max(1L, round(params$BL / dt_hr))
+  Kb    <- params@Kb
+  BR    <- params@BR
+  bl_steps <- max(1L, round(params@BL / dt_hr))
 
   Qb_cur <- baseflow_0
   for (t in seq_len(n)) {

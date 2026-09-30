@@ -49,8 +49,12 @@
 utils::globalVariables(c(".SD", ".N", ".I", ".GRP", ".", ":="))
 
 .onLoad <- function(libname, pkgname) {
-  # Ensure data.table is available; register S7 classes
-  invisible(NULL)
+  # S7's print.S7_object calls str() directly and never consults S7's
+  # internal method table, so S7::method(print, ...) assignments are
+  # silently ignored. Registering via registerS3method() puts the method
+  # in R's own S3 dispatch table where it is found before print.S7_object.
+  registerS3method("print", "reach.hydro::FlodeReFHParams",
+                    .print_FlodeReFHParams, envir = asNamespace(pkgname))
 }
 
 .onAttach <- function(libname, pkgname) {
