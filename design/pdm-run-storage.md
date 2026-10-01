@@ -96,7 +96,7 @@ everything needed to reproduce or audit a run without loading the result.
   "n_timesteps":   1051920,
   "dt_minutes":    15,
   "input_provenance": {
-    "class":        "Rainfall_15min",
+    "class":        "FlodeRainfall_15min",
     "parameter":    "rainfall",
     "period_name":  "Moorhouse 1990–2020",
     "downloaded_at":"2026-03-01T11:00:00Z"
@@ -189,7 +189,7 @@ read_pdm_run(path)
 | §1.2 Multi-objective calibration | Add `pareto_front.parquet` alongside `result.parquet` |
 | §1.4 Monte Carlo uncertainty | Ensemble stored as wide parquet (one column per member) or partitioned by `member_id` |
 | §5.2 S7 class migration | `read_pdm_run()` reconstructs S7 class instead of S3 — manifest format unchanged |
-| §5.3 reach.io HydroData round-trip | `write_pdm_run()` will optionally coerce to `Flow_Daily`/`Flow_15min` for storage via the reach.io data layer |
+| §5.3 reach.io FlodeHydroData round-trip | `write_pdm_run()` will optionally coerce to `FlodeFlow_Daily`/`FlodeFlow_15min` for storage via the reach.io data layer |
 
 ---
 

@@ -207,7 +207,7 @@ peaks_over_threshold <- function(flow, dates, threshold, min_sep = 3L) {
 #' quickflow per step; recalibrate accordingly for sub-daily use.
 #'
 #' @param flow   Numeric vector of total flow values. Must be non-negative.
-#'               Can also be a `reach.io` `Flow_Daily` or `Flow_15min` HydroData
+#'               Can also be a `reach.io` `FlodeFlow_Daily` or `FlodeFlow_15min` FlodeHydroData
 #'               object, in which case values and datetimes are extracted
 #'               automatically.
 #' @param method One of `"lyne_hollick"` (default) or `"boughton_eckhardt"`.
@@ -304,14 +304,14 @@ baseflow_separate <- function(flow,
 #' 15-minute data).
 #'
 #' @param flow              Numeric vector of flow values. Can also be a
-#'                          `reach.io` `Flow_Daily` or `Flow_15min` HydroData
+#'                          `reach.io` `FlodeFlow_Daily` or `FlodeFlow_15min` FlodeHydroData
 #'                          object, in which case values and datetimes are
 #'                          extracted automatically and `dates` is ignored.
 #' @param n                 Integer. Rolling window width in timesteps. Default `7L`.
 #' @param type              `"min"` (default) or `"max"`.
 #' @param dates             Optional `Date` or `POSIXct` vector the same length as
 #'                          `flow`. If supplied, annual values are returned.
-#'                          Ignored when `flow` is a HydroData object.
+#'                          Ignored when `flow` is a FlodeHydroData object.
 #' @param water_year_start  Integer month that starts the water year. Default `10L`.
 #'
 #' @return If `dates` is `NULL`: a scalar (overall rolling min/max).
@@ -376,11 +376,11 @@ q_n_day <- function(flow, n = 7L, type = c("min", "max"),
 #' is supplied.
 #'
 #' @param flow   Numeric vector of flow values. Can also be a `reach.io`
-#'               `Flow_Daily` or `Flow_15min` HydroData object, in which case
+#'               `FlodeFlow_Daily` or `FlodeFlow_15min` FlodeHydroData object, in which case
 #'               values and datetimes are extracted automatically and `dates`
 #'               is ignored.
 #' @param dates  `Date` or `POSIXct` vector, same length as `flow`. Ignored
-#'               when `flow` is a HydroData object.
+#'               when `flow` is a FlodeHydroData object.
 #'
 #' @return A 12-row `data.table` with columns:
 #'   `month` (1-12), `mean`, `median`, `Q10`, `Q90`, `max`.
@@ -440,7 +440,7 @@ monthly_flow_stats <- function(flow, dates = NULL) {
 #' `Date` vector, or in hours when `dates` is `POSIXct`.
 #'
 #' @param flow       Numeric vector of flow values. Can also be a `reach.io`
-#'                   `Flow_Daily` or `Flow_15min` HydroData object, in which
+#'                   `FlodeFlow_Daily` or `FlodeFlow_15min` FlodeHydroData object, in which
 #'                   case values and datetimes are extracted automatically and
 #'                   `dates` is ignored.
 #' @param threshold  Flow threshold. Spells where `flow < threshold` are
@@ -448,7 +448,7 @@ monthly_flow_stats <- function(flow, dates = NULL) {
 #' @param dates      Optional `Date` or `POSIXct` vector the same length as
 #'                   `flow`. If supplied, `start_date` and `end_date` columns
 #'                   are added and duration is in real time units. Ignored when
-#'                   `flow` is a HydroData object.
+#'                   `flow` is a FlodeHydroData object.
 #'
 #' @return A `data.table` with one row per deficit spell and columns:
 #'   `start_idx`, `end_idx`, `duration`, `deficit_volume`, `max_deficit`.
@@ -566,13 +566,13 @@ flow_deficit <- function(flow, threshold, dates = NULL) {
 #' time units as the timestep.
 #'
 #' @param flow          Numeric vector of flow values. Must be positive. Can
-#'                      also be a `reach.io` `Flow_Daily` or `Flow_15min`
-#'                      HydroData object, in which case values and datetimes
+#'                      also be a `reach.io` `FlodeFlow_Daily` or `FlodeFlow_15min`
+#'                      FlodeHydroData object, in which case values and datetimes
 #'                      are extracted automatically and `dates` is ignored.
 #' @param dates         Optional `Date` or `POSIXct` vector, same length as
 #'                      `flow`. If supplied, `start_date` and `end_date` columns
 #'                      are added to the per-event table. Ignored when `flow` is
-#'                      a HydroData object.
+#'                      a FlodeHydroData object.
 #' @param min_duration  Minimum number of consecutive timesteps to qualify as a
 #'                      recession. Default `5L`.
 #' @param min_ratio     Maximum allowed `Q[t] / Q[t-1]` ratio for a timestep to

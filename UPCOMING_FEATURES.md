@@ -266,10 +266,10 @@ class definitions once the S7 package is available on CRAN. S7 provides formal
 property validation, inheritance, and method dispatch, removing boilerplate
 from the existing `pdm_validate_params()` calls.
 
-### 5.3 reach.io HydroData round-trip for PDM output
+### 5.3 reach.io FlodeHydroData round-trip for PDM output
 
 Extend `reach_io_compat.R` so that `ReachHydroResult` objects can be coerced
-to and from `Flow_Daily` / `Flow_15min` HydroData objects. Enables PDM
+to and from `FlodeFlow_Daily` / `FlodeFlow_15min` FlodeHydroData objects. Enables PDM
 simulations to be stored and retrieved via the reach.io data layer without
 manual extraction.
 

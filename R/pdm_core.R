@@ -27,9 +27,9 @@
 #' including all parameters from Table 1 of the paper.
 #'
 #' @param rain   Numeric vector of catchment-average rainfall \[mm/timestep\],
-#'               OR a `Rainfall_Daily` / `Rainfall_15min` reach.io object.
+#'               OR a `FlodeRainfall_Daily` / `FlodeRainfall_15min` reach.io object.
 #' @param pet    Numeric vector of potential evapotranspiration \[mm/timestep\],
-#'               OR a reach.io HydroData object containing PET.
+#'               OR a reach.io FlodeHydroData object containing PET.
 #' @param params A `PdmParams` object from [pdm_params()], or a named list.
 #'               All Table 1 parameters are supported; see [pdm_params()] for
 #'               the full reference.
@@ -85,10 +85,10 @@ pdm <- function(rain, pet,
                 Ss10   = 0,
                 Ss20   = 0) {
 
-  # ---- resolve reach.io HydroData inputs ------------------------------------
+  # ---- resolve reach.io FlodeHydroData inputs ------------------------------------
   if (.is_hydrodata(rain) || .is_hydrodata(pet)) {
     if (!.is_hydrodata(rain) || !.is_hydrodata(pet))
-      stop("pdm(): if either `rain` or `pet` is a reach.io HydroData object, ",
+      stop("pdm(): if either `rain` or `pet` is a reach.io FlodeHydroData object, ",
            "both must be. Use as_pdm_input() to align and extract first.",
            call. = FALSE)
     inputs <- as_pdm_input(rain, pet)

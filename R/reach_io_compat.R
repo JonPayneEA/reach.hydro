@@ -1,30 +1,30 @@
 # =============================================================================
 # Tool:        reach.hydro — reach.io compatibility layer
-# Description: Bridges reach.io S7 HydroData objects into reach.hydro
+# Description: Bridges reach.io S7 FlodeHydroData objects into reach.hydro
 #              functions. Provides:
-#                - Class validators: check the right HydroData subclass is
+#                - Class validators: check the right FlodeHydroData subclass is
 #                  passed and that its readings meet minimum requirements
-#                - Extractors: pull the value vector out of a HydroData object
+#                - Extractors: pull the value vector out of a FlodeHydroData object
 #                  with consistent NA handling and unit checking
-#                - Coercers: convert HydroData pairs (Rainfall + Flow) into
+#                - Coercers: convert FlodeHydroData pairs (Rainfall + Flow) into
 #                  the flat vectors that pdm() and FEH functions expect
 #
 #              Design principle: reach.hydro does NOT depend on reach.io at
 #              build time (reach.io is in Suggests, not Imports). All
 #              reach.io-aware code is gated by .is_hydrodata() so the package
 #              installs and loads cleanly without reach.io present. Users who
-#              pass HydroData objects without reach.io installed receive a
+#              pass FlodeHydroData objects without reach.io installed receive a
 #              clear error message.
 #
 #              reach.io S7 class hierarchy (from reach.io documentation):
-#                Abstract parent : HydroData
+#                Abstract parent : FlodeHydroData
 #                  Slots: readings (data.table), parameter (chr),
 #                         period_name (chr), from_date (chr), to_date (chr),
 #                         n_measures (int), n_rows (int), downloaded_at (POSIXct)
-#                Concrete classes (all inherit HydroData):
-#                  Rainfall_Daily, Rainfall_15min,
-#                  Flow_Daily,    Flow_15min,
-#                  Level_Daily,   Level_15min
+#                Concrete classes (all inherit FlodeHydroData):
+#                  FlodeRainfall_Daily, FlodeRainfall_15min,
+#                  FlodeFlow_Daily,    FlodeFlow_15min,
+#                  FlodeLevel_Daily,   FlodeLevel_15min
 #                readings schema:
 #                  dateTime (POSIXct), date (Date), value (numeric),
 #                  measure_notation (chr), quality (chr, optional),
@@ -36,9 +36,10 @@
 # Flode Module: reach.hydro
 # Author:      Forecasting and Warning Team
 # Created:     2026-02-23
-# Modified:    2026-02-23 - JP: initial implementation
+# Modified:    2026-10-01 - JP: match reach.io's namespaced Flode class names;
+#                               fix scrambled sprintf() error messages
 # Tier:        1
-# Inputs:      reach.io HydroData S7 objects
+# Inputs:      reach.io FlodeHydroData S7 objects
 # Outputs:     Numeric vectors; data.tables; validated inputs for model fns
 # Dependencies: data.table (Imports); reach.io (Suggests)
 # =============================================================================
@@ -52,40 +53,45 @@
   requireNamespace("reach.io", quietly = TRUE)
 }
 
-# Check whether an object is any HydroData subclass
+# reach.io defines its S7 classes with package = "reach.io", so instances
+# carry namespaced class names such as "reach.io::FlodeFlow_Daily". Matching
+# on these strings keeps detection working without loading reach.io.
+.io_cls <- function(...) paste0("reach.io::Flode", c(...))
+
+# Check whether an object is any FlodeHydroData subclass
 .is_hydrodata <- function(x) {
   if (!.reach_io_available()) return(FALSE)
-  inherits(x, "HydroData")
+  inherits(x, .io_cls("HydroData"))
 }
 
 # Check for a specific concrete class or group
 .is_rainfall <- function(x) {
-  inherits(x, c("Rainfall_Daily", "Rainfall_15min"))
+  inherits(x, .io_cls("Rainfall_Daily", "Rainfall_15min"))
 }
 
 .is_flow <- function(x) {
-  inherits(x, c("Flow_Daily", "Flow_15min"))
+  inherits(x, .io_cls("Flow_Daily", "Flow_15min"))
 }
 
 .is_level <- function(x) {
-  inherits(x, c("Level_Daily", "Level_15min"))
+  inherits(x, .io_cls("Level_Daily", "Level_15min"))
 }
 
 .is_daily <- function(x) {
-  inherits(x, c("Rainfall_Daily", "Flow_Daily", "Level_Daily"))
+  inherits(x, .io_cls("Rainfall_Daily", "Flow_Daily", "Level_Daily"))
 }
 
 .is_15min <- function(x) {
-  inherits(x, c("Rainfall_15min", "Flow_15min", "Level_15min"))
+  inherits(x, .io_cls("Rainfall_15min", "Flow_15min", "Level_15min"))
 }
 
 # =============================================================================
 # SECTION 2 : VALIDATORS
 # =============================================================================
 
-#' Assert that an object is a reach.io HydroData object
+#' Assert that an object is a reach.io FlodeHydroData object
 #'
-#' Stops with an informative message if `x` is not a `HydroData` subclass,
+#' Stops with an informative message if `x` is not a `FlodeHydroData` subclass,
 #' or if reach.io is not installed.
 #'
 #' @param x        Object to check.
@@ -93,53 +99,53 @@
 #' @keywords internal
 .assert_hydrodata <- function(x, arg_name = deparse(substitute(x))) {
   if (!.reach_io_available())
-    stop(sprintf(
-      "%s: object appears to be a reach.io HydroData but reach.io is not ",
-      "installed. Install reach.io or supply a plain numeric vector instead.",
+    stop(sprintf(paste0(
+      "%s: object appears to be a reach.io FlodeHydroData but reach.io is not ",
+      "installed. Install reach.io or supply a plain numeric vector instead."),
       arg_name), call. = FALSE)
   if (!.is_hydrodata(x))
     stop(sprintf(
-      "%s: expected a reach.io HydroData object; got %s.",
+      "%s: expected a reach.io FlodeHydroData object; got %s.",
       arg_name, paste(class(x), collapse = "/")), call. = FALSE)
   invisible(x)
 }
 
-#' Assert that a HydroData object is a Rainfall subclass
+#' Assert that a FlodeHydroData object is a Rainfall subclass
 #'
-#' @param x        HydroData object.
+#' @param x        FlodeHydroData object.
 #' @param arg_name Argument name for error messages.
 #' @keywords internal
 .assert_rainfall <- function(x, arg_name = deparse(substitute(x))) {
   .assert_hydrodata(x, arg_name)
   if (!.is_rainfall(x))
-    stop(sprintf(
-      "%s: expected a Rainfall_Daily or Rainfall_15min object; got %s. ",
-      "Check you have passed the rainfall series, not the flow series.",
+    stop(sprintf(paste0(
+      "%s: expected a FlodeRainfall_Daily or FlodeRainfall_15min object; got %s. ",
+      "Check you have passed the rainfall series, not the flow series."),
       arg_name, paste(class(x), collapse = "/")), call. = FALSE)
   invisible(x)
 }
 
-#' Assert that a HydroData object is a Flow subclass
+#' Assert that a FlodeHydroData object is a Flow subclass
 #'
-#' @param x        HydroData object.
+#' @param x        FlodeHydroData object.
 #' @param arg_name Argument name for error messages.
 #' @keywords internal
 .assert_flow <- function(x, arg_name = deparse(substitute(x))) {
   .assert_hydrodata(x, arg_name)
   if (!.is_flow(x))
-    stop(sprintf(
-      "%s: expected a Flow_Daily or Flow_15min object; got %s. ",
-      "Check you have passed the flow series, not the rainfall series.",
+    stop(sprintf(paste0(
+      "%s: expected a FlodeFlow_Daily or FlodeFlow_15min object; got %s. ",
+      "Check you have passed the flow series, not the rainfall series."),
       arg_name, paste(class(x), collapse = "/")), call. = FALSE)
   invisible(x)
 }
 
-#' Validate that two HydroData objects share the same timestep class
+#' Validate that two FlodeHydroData objects share the same timestep class
 #'
 #' Stops if one is daily and the other is 15-minute, since mismatched
 #' timesteps will silently produce wrong model outputs.
 #'
-#' @param x,y  Two HydroData objects.
+#' @param x,y  Two FlodeHydroData objects.
 #' @keywords internal
 .assert_same_timestep <- function(x, y) {
   x_daily <- .is_daily(x)
@@ -156,12 +162,12 @@
 # SECTION 3 : EXTRACTORS
 # =============================================================================
 
-#' Extract the value vector from a HydroData object
+#' Extract the value vector from a FlodeHydroData object
 #'
 #' Returns `readings$value` as a plain numeric vector, with quality filtering
 #' applied if the `quality` column is present.
 #'
-#' @param x           A reach.io HydroData object.
+#' @param x           A reach.io FlodeHydroData object.
 #' @param na_quality  Character vector of quality flags to replace with `NA`.
 #'                    Default `c("Missing", "Suspect")`. Set to `character(0)`
 #'                    to keep all values.
@@ -178,9 +184,9 @@ hydrodata_values <- function(x, na_quality = c("Missing", "Suspect")) {
   stats::setNames(v, as.character(dt$dateTime))
 }
 
-#' Extract the dateTime vector from a HydroData object
+#' Extract the dateTime vector from a FlodeHydroData object
 #'
-#' @param x A reach.io HydroData object.
+#' @param x A reach.io FlodeHydroData object.
 #' @return POSIXct vector.
 #' @export
 hydrodata_datetimes <- function(x) {
@@ -188,9 +194,9 @@ hydrodata_datetimes <- function(x) {
   reach.io::as_data_table(x)$dateTime
 }
 
-#' Extract the date vector from a HydroData object
+#' Extract the date vector from a FlodeHydroData object
 #'
-#' @param x A reach.io HydroData object.
+#' @param x A reach.io FlodeHydroData object.
 #' @return Date vector.
 #' @export
 hydrodata_dates <- function(x) {
@@ -199,16 +205,16 @@ hydrodata_dates <- function(x) {
 }
 
 # =============================================================================
-# SECTION 4 : COERCERS — convert HydroData inputs to model-ready vectors
+# SECTION 4 : COERCERS — convert FlodeHydroData inputs to model-ready vectors
 # =============================================================================
 
-#' Coerce a Rainfall HydroData object to a numeric vector for pdm()
+#' Coerce a Rainfall FlodeHydroData object to a numeric vector for pdm()
 #'
 #' Extracts rainfall depths, applies quality filtering, and aligns the series
 #' to a regular time grid. Returns a plain numeric vector in mm/timestep,
 #' ready to pass as `rain` to [pdm()].
 #'
-#' @param x          A `Rainfall_Daily` or `Rainfall_15min` object.
+#' @param x          A `FlodeRainfall_Daily` or `FlodeRainfall_15min` object.
 #' @param na_quality Quality flags to replace with `NA`. Default
 #'                   `c("Missing", "Suspect")`.
 #'
@@ -220,14 +226,14 @@ as_rain_input <- function(x, na_quality = c("Missing", "Suspect")) {
   hydrodata_values(x, na_quality)
 }
 
-#' Coerce a Flow or Level HydroData object to a PET proxy vector for pdm()
+#' Coerce a Flow or Level FlodeHydroData object to a PET proxy vector for pdm()
 #'
 #' Intended for cases where PET is stored as a Level or Flow series in
 #' reach.io (e.g. gridded PET imported as a flow-unit series). For the
 #' common case of estimating PET from temperature, use a separate PET
 #' estimation function and pass the result directly to [pdm()].
 #'
-#' @param x          A HydroData object containing PET values \[mm/timestep\].
+#' @param x          A FlodeHydroData object containing PET values \[mm/timestep\].
 #' @param na_quality Quality flags to replace with `NA`.
 #'
 #' @return Numeric vector \[mm/timestep\].
@@ -238,14 +244,14 @@ as_pet_input <- function(x, na_quality = c("Missing", "Suspect")) {
   hydrodata_values(x, na_quality)
 }
 
-#' Coerce a paired Rainfall + PET HydroData to a list ready for pdm()
+#' Coerce a paired Rainfall + PET FlodeHydroData to a list ready for pdm()
 #'
 #' Validates both objects, checks they share the same timestep class, aligns
 #' them by dateTime (inner join), and returns a named list with `rain`, `pet`,
 #' and `dates` vectors — all the same length.
 #'
-#' @param rainfall  A `Rainfall_Daily` or `Rainfall_15min` object.
-#' @param pet       A HydroData object containing PET \[mm/timestep\].
+#' @param rainfall  A `FlodeRainfall_Daily` or `FlodeRainfall_15min` object.
+#' @param pet       A FlodeHydroData object containing PET \[mm/timestep\].
 #' @param na_quality Quality flags to replace with `NA`.
 #'
 #' @return A named list: `rain` (numeric), `pet` (numeric), `dates` (Date),
@@ -304,13 +310,13 @@ as_pdm_input <- function(rainfall, pet, na_quality = c("Missing", "Suspect")) {
   )
 }
 
-#' Coerce a Flow HydroData object to an AMAX series for FEH methods
+#' Coerce a Flow FlodeHydroData object to an AMAX series for FEH methods
 #'
-#' Extracts annual maximum flows from a `Flow_Daily` or `Flow_15min` object,
+#' Extracts annual maximum flows from a `FlodeFlow_Daily` or `FlodeFlow_15min` object,
 #' using [annual_maxima()] internally. Returns a numeric vector of annual
 #' maxima ready to pass to [feh_single_site()], [feh_pooled()], or [fit_glo()].
 #'
-#' @param x               A `Flow_Daily` or `Flow_15min` object.
+#' @param x               A `FlodeFlow_Daily` or `FlodeFlow_15min` object.
 #' @param water_year_start Integer month that starts the water year. Default 10.
 #' @param na_quality      Quality flags to replace with `NA`.
 #' @param min_years       Minimum number of complete water years required.
@@ -357,12 +363,12 @@ as_amax <- function(x,
   result
 }
 
-#' Coerce a Flow HydroData object to a POT peaks series for feh_pot()
+#' Coerce a Flow FlodeHydroData object to a POT peaks series for feh_pot()
 #'
-#' Extracts independent peaks over a threshold from a `Flow_Daily` or
-#' `Flow_15min` object using [peaks_over_threshold()].
+#' Extracts independent peaks over a threshold from a `FlodeFlow_Daily` or
+#' `FlodeFlow_15min` object using [peaks_over_threshold()].
 #'
-#' @param x         A `Flow_Daily` or `Flow_15min` object.
+#' @param x         A `FlodeFlow_Daily` or `FlodeFlow_15min` object.
 #' @param threshold Flow threshold \[same units as x\].
 #' @param min_sep   Minimum separation between independent peaks \[timesteps\].
 #'                  Default 3.
@@ -398,12 +404,12 @@ as_pot <- function(x, threshold, min_sep = 3L,
   peaks
 }
 
-#' Coerce a Flow HydroData object to an observed flow vector for pdm calibration
+#' Coerce a Flow FlodeHydroData object to an observed flow vector for pdm calibration
 #'
 #' Extracts the value vector from a Flow object, aligning to a supplied date
 #' vector so the observed series lines up with model output from [pdm()].
 #'
-#' @param x          A `Flow_Daily` or `Flow_15min` object.
+#' @param x          A `FlodeFlow_Daily` or `FlodeFlow_15min` object.
 #' @param datetimes  POSIXct vector of model timesteps (from [as_pdm_input()]).
 #' @param na_quality Quality flags to replace with `NA`.
 #'
@@ -430,19 +436,19 @@ as_obs_flow <- function(x, datetimes, na_quality = c("Missing", "Suspect")) {
 # SECTION 5 : HYDRODATA METADATA HELPERS
 # =============================================================================
 
-#' Summarise a reach.io HydroData object for logging / provenance
+#' Summarise a reach.io FlodeHydroData object for logging / provenance
 #'
 #' Returns a compact named list describing the object — useful for recording
 #' input provenance in model run logs and governance records.
 #'
-#' @param x A reach.io HydroData object.
+#' @param x A reach.io FlodeHydroData object.
 #' @return Named list: `class`, `parameter`, `period_name`, `from_date`,
 #'   `to_date`, `n_rows`, `n_measures`, `downloaded_at`.
 #' @export
 hydrodata_provenance <- function(x) {
   .assert_hydrodata(x, "x")
   list(
-    class        = class(x)[1],
+    class        = sub("^reach\\.io::", "", class(x)[1]),
     parameter    = x@parameter,
     period_name  = x@period_name,
     from_date    = x@from_date,

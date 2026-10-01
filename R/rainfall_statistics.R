@@ -25,13 +25,13 @@
 #' `Date` vector, and in hours when `dates` is a `POSIXct` vector.
 #'
 #' @param rain      Numeric vector of rainfall depths per timestep. Must be
-#'                  non-negative. Can also be a `reach.io` `Rainfall_Daily` or
-#'                  `Rainfall_15min` HydroData object, in which case values and
+#'                  non-negative. Can also be a `reach.io` `FlodeRainfall_Daily` or
+#'                  `FlodeRainfall_15min` FlodeHydroData object, in which case values and
 #'                  datetimes are extracted automatically and `dates` is ignored.
 #' @param dates     Optional `Date` or `POSIXct` vector the same length as
 #'                  `rain`.  If supplied, `start_date` and `end_date` columns
 #'                  are added to the output and duration is in real time units.
-#'                  Ignored when `rain` is a HydroData object.
+#'                  Ignored when `rain` is a FlodeHydroData object.
 #' @param min_dry   Minimum number of consecutive dry timesteps (i.e. rain
 #'                  below `dry_thresh`) required to separate two events.
 #'                  Default `6L`.
@@ -178,8 +178,8 @@ rainfall_events <- function(rain, dates = NULL, min_dry = 6L,
 #' appropriate to maintain the same effective memory window.
 #'
 #' @param rain  Numeric vector of rainfall depths per timestep. Must be
-#'              non-negative. Can also be a `reach.io` `Rainfall_Daily` or
-#'              `Rainfall_15min` HydroData object, in which case values are
+#'              non-negative. Can also be a `reach.io` `FlodeRainfall_Daily` or
+#'              `FlodeRainfall_15min` FlodeHydroData object, in which case values are
 #'              extracted automatically.
 #' @param k     Decay factor per timestep, in (0, 1). Default `0.9`.
 #'
@@ -221,8 +221,8 @@ api <- function(rain, k = 0.9) {
 #' for 1-, 3-, and 6-day maxima.
 #'
 #' @param rain              Numeric vector of rainfall per timestep. Non-negative.
-#'                          Can also be a `reach.io` `Rainfall_Daily` or
-#'                          `Rainfall_15min` HydroData object, in which case
+#'                          Can also be a `reach.io` `FlodeRainfall_Daily` or
+#'                          `FlodeRainfall_15min` FlodeHydroData object, in which case
 #'                          values and datetimes are extracted automatically and
 #'                          `dates` is ignored.
 #' @param durations         Integer vector of window widths (in timesteps) for
@@ -231,7 +231,7 @@ api <- function(rain, k = 0.9) {
 #' @param dates             Optional `Date` or `POSIXct` vector the same length
 #'                          as `rain`.  If supplied, annual maxima are returned
 #'                          grouped by water year. Ignored when `rain` is a
-#'                          HydroData object.
+#'                          FlodeHydroData object.
 #' @param water_year_start  Integer month that starts the water year. Default
 #'                          `10L` (October, UK convention).
 #'

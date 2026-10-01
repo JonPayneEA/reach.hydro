@@ -36,7 +36,7 @@
 #' pooled analyses can substitute a catchment descriptor-based QMED estimate.
 #'
 #' @param amax        Numeric vector of annual maximum flows \[m³/s\],
-#'                    OR a `Flow_Daily` / `Flow_15min` object from reach.io
+#'                    OR a `FlodeFlow_Daily` / `FlodeFlow_15min` object from reach.io
 #'                    (annual maxima are extracted automatically via [as_amax()]).
 #'                    At least 10 years recommended; 15+ for reliable estimates.
 #' @param dist        Distribution: `"glo"` (default), `"gev"`, or `"gno"`.
@@ -77,7 +77,7 @@ feh_single_site <- function(amax,
 
   dist <- match.arg(dist, c("glo", "gev", "gno"))
 
-  # ---- resolve reach.io HydroData input ------------------------------------
+  # ---- resolve reach.io FlodeHydroData input ------------------------------------
   if (.is_hydrodata(amax)) {
     record_name <- record_name %||% amax@period_name
     amax        <- as_amax(amax)
@@ -129,7 +129,7 @@ feh_single_site <- function(amax,
 #' based on catchment similarity) and passed as a named list.
 #'
 #' @param subject_amax   Numeric vector of AMAX at the subject site \[m³/s\],
-#'                       OR a `Flow_Daily` / `Flow_15min` reach.io object.
+#'                       OR a `FlodeFlow_Daily` / `FlodeFlow_15min` reach.io object.
 #'                       May be `NULL` if `subject_qmed` is supplied directly.
 #' @param donor_list     Named list of numeric AMAX vectors for donor sites.
 #'                       Names are used as labels in output.
@@ -167,7 +167,7 @@ feh_pooled <- function(subject_amax   = NULL,
 
   dist <- match.arg(dist, c("glo", "gev"))
 
-  # ---- resolve reach.io HydroData input ------------------------------------
+  # ---- resolve reach.io FlodeHydroData input ------------------------------------
   if (!is.null(subject_amax) && .is_hydrodata(subject_amax)) {
     subject_amax <- as_amax(subject_amax)
   }
@@ -248,7 +248,7 @@ feh_pooled <- function(subject_amax   = NULL,
 #' probability is combined via P(Q > q) = 1 - exp(-lambda * F_gpd(q)).
 #'
 #' @param peaks        Numeric vector of independent peak flows \[m³/s\],
-#'                     OR a `Flow_Daily` / `Flow_15min` reach.io object
+#'                     OR a `FlodeFlow_Daily` / `FlodeFlow_15min` reach.io object
 #'                     (peaks are extracted automatically via [as_pot()]).
 #'                     Or use [peaks_over_threshold()] / [as_pot()] directly.
 #' @param threshold    Threshold used to extract peaks \[m³/s\].
@@ -274,7 +274,7 @@ feh_pot <- function(peaks,
                     n_boot         = 500L,
                     ci_level       = 0.90) {
 
-  # ---- resolve reach.io HydroData input ------------------------------------
+  # ---- resolve reach.io FlodeHydroData input ------------------------------------
   if (.is_hydrodata(peaks)) {
     pot     <- as_pot(peaks, threshold = threshold, min_sep = 3L)
     n_years <- attr(pot, "n_years")
